@@ -70,7 +70,7 @@
 
   /* camera */
   .cam-wrap { width: 100%; aspect-ratio: 9/16; background: #000; border-radius: 20px; overflow: hidden; position: relative; margin-bottom: 14px; max-height: 54dvh; }
-  #localVideo { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  #localVideo { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); transition: transform .18s ease; }
 
   .cam-hud { position: absolute; inset: 0; pointer-events: none; }
   .cam-top { display: flex; justify-content: space-between; align-items: center; padding: 12px 13px; }
@@ -84,6 +84,10 @@
 
   .info-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 11px 15px; font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 11px; line-height: 1.5; }
   .info-bar strong { color: var(--text); font-weight: 600; }
+  .camera-actions { display: flex; gap: 10px; width: 100%; margin-bottom: 11px; }
+  .btn-secondary { flex: 1; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 12px; font-family: var(--font); font-size: 13px; font-weight: 600; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
+  .btn-secondary:hover { border-color: var(--accent-mid); color: var(--accent); }
+  .btn-secondary.active { background: var(--accent-soft); border-color: var(--accent-mid); color: var(--accent); }
 
   .btn-end { width: 100%; background: var(--red-soft); color: var(--red); border: 1px solid rgba(229,62,62,.2); border-radius: 12px; padding: 12px; font-family: var(--font); font-size: 13px; font-weight: 500; cursor: pointer; transition: background .15s; }
   .btn-end:hover { background: rgba(229,62,62,.14); }
@@ -192,6 +196,9 @@
     <canvas id="annoCanvas"></canvas>
   </div>
   <div class="info-bar">Point your phone at the screen or area you need help with.<br><strong>Your tech can see your camera feed live.</strong></div>
+  <div class="camera-actions">
+    <button class="btn-secondary active" id="flipPreviewBtn" onclick="togglePreviewFlip()">Flip preview</button>
+  </div>
   <button class="btn-end" onclick="endSession()">End session</button>
   <div class="powered" style="margin-top:14px;">goshowmeapp.com</div>
 </div>
@@ -239,6 +246,7 @@ const STUN_FALLBACK=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.g
 const token=location.pathname.split('/join/')[1]?.split('/')[0];
 
 let ws=null,pc=null,localStream=null,meta=null,ttlTimer=null;
+let previewMirrored=true;
 let _iceServers=null;
 async function getIceServers(){
   if(_iceServers)return _iceServers;
@@ -255,6 +263,18 @@ async function getIceServers(){
 }
 
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));document.getElementById(id).classList.add('on');}
+
+function applyPreviewFlip(){
+  document.getElementById('localVideo').style.transform=previewMirrored?'scaleX(-1)':'scaleX(1)';
+  document.getElementById('flipPreviewBtn').classList.toggle('active',previewMirrored);
+  document.getElementById('flipPreviewBtn').textContent=previewMirrored?'Flip preview: on':'Flip preview: off';
+  aRedraw();
+}
+
+function togglePreviewFlip(){
+  previewMirrored=!previewMirrored;
+  applyPreviewFlip();
+}
 
 async function init(){
   if(!token)return expire('Invalid link','This link does not contain a valid session token.');
@@ -368,9 +388,8 @@ function resizeACanvas() {
 }
 new ResizeObserver(resizeACanvas).observe(document.body);
 
-// X is flipped because user's video is CSS-mirrored (scaleX(-1))
-// so coords from tech (who sees unmirrored) need to be flipped on user side
-function flipX(x) { return 1 - x; }
+// Mirror annotations only when the user has mirror preview enabled.
+function flipX(x) { return previewMirrored ? 1 - x : x; }
 
 function handleAnno(msg) {
   const color = msg._color || '#FF4F00';
@@ -507,6 +526,8 @@ function aSchedFade() {
   }
   aFadeRaf = requestAnimationFrame(tick);
 }
+
+applyPreviewFlip();
 </script>
 </body>
 </html>
