@@ -70,7 +70,8 @@
 
   /* camera */
   .cam-wrap { width: 100%; aspect-ratio: 9/16; background: #000; border-radius: 20px; overflow: hidden; position: relative; margin-bottom: 14px; max-height: 54dvh; }
-  #localVideo { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); transition: transform .18s ease; }
+  #localVideo { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); transform-origin: center center; transition: transform .18s ease; }
+  .cam-wrap.landscape { aspect-ratio: 16/9; max-height: 72dvh; }
 
   .cam-hud { position: absolute; inset: 0; pointer-events: none; }
   .cam-top { display: flex; justify-content: space-between; align-items: center; padding: 12px 13px; }
@@ -115,6 +116,8 @@
     position: absolute; inset: 0; z-index: 5;
     width: 100%; height: 100%;
     pointer-events: none;
+    transform-origin: center center;
+    transition: transform .18s ease;
   }
 </style>
 </head>
@@ -197,7 +200,8 @@
   </div>
   <div class="info-bar">Point your phone at the screen or area you need help with.<br><strong>Your tech can see your camera feed live.</strong></div>
   <div class="camera-actions">
-    <button class="btn-secondary active" id="flipPreviewBtn" onclick="togglePreviewFlip()">Flip preview</button>
+    <button class="btn-secondary" id="fullscreenBtn" onclick="toggleFullscreen()">Full screen</button>
+    <button class="btn-secondary" id="orientationBtn" onclick="toggleOrientationMode()">Landscape mode</button>
   </div>
   <button class="btn-end" onclick="endSession()">End session</button>
   <div class="powered" style="margin-top:14px;">goshowmeapp.com</div>
@@ -246,7 +250,8 @@ const STUN_FALLBACK=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.g
 const token=location.pathname.split('/join/')[1]?.split('/')[0];
 
 let ws=null,pc=null,localStream=null,meta=null,ttlTimer=null;
-let previewMirrored=true;
+let orientationMode='portrait';
+let orientationLockActive=false;
 let _iceServers=null;
 async function getIceServers(){
   if(_iceServers)return _iceServers;
@@ -264,16 +269,60 @@ async function getIceServers(){
 
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));document.getElementById(id).classList.add('on');}
 
-function applyPreviewFlip(){
-  document.getElementById('localVideo').style.transform=previewMirrored?'scaleX(-1)':'scaleX(1)';
-  document.getElementById('flipPreviewBtn').classList.toggle('active',previewMirrored);
-  document.getElementById('flipPreviewBtn').textContent=previewMirrored?'Flip preview: on':'Flip preview: off';
-  aRedraw();
+function updateViewButtons(){
+  document.getElementById('fullscreenBtn').classList.toggle('active',!!document.fullscreenElement);
+  document.getElementById('fullscreenBtn').textContent=document.fullscreenElement?'Exit full screen':'Full screen';
+  document.getElementById('orientationBtn').classList.toggle('active',orientationMode==='landscape');
+  document.getElementById('orientationBtn').textContent=orientationMode==='landscape'?'Back to portrait':'Landscape mode';
 }
 
-function togglePreviewFlip(){
-  previewMirrored=!previewMirrored;
-  applyPreviewFlip();
+async function enterFullscreen(){
+  const wrap=document.querySelector('.cam-wrap');
+  if(document.fullscreenElement===wrap)return true;
+  const fn=wrap.requestFullscreen?.bind(wrap)||wrap.webkitRequestFullscreen?.bind(wrap);
+  if(!fn)return false;
+  await fn();
+  return true;
+}
+
+async function exitFullscreen(){
+  const fn=document.exitFullscreen?.bind(document)||document.webkitExitFullscreen?.bind(document);
+  if(!fn)return false;
+  await fn();
+  return true;
+}
+
+async function applyCameraView({attemptLock=false}={}){
+  const wantsLandscape=orientationMode==='landscape';
+  orientationLockActive=false;
+
+  if(attemptLock&&screen.orientation?.lock){
+    try{
+      if(wantsLandscape&&!document.fullscreenElement)await enterFullscreen();
+      await screen.orientation.lock(wantsLandscape?'landscape':'portrait');
+      orientationLockActive=!!document.fullscreenElement&&wantsLandscape;
+    }catch(_){}
+  }
+
+  const fallbackRotate=wantsLandscape&&!orientationLockActive;
+  const transform=`scaleX(-1)${fallbackRotate?' rotate(90deg)':''}`;
+  document.getElementById('localVideo').style.transform=transform;
+  document.getElementById('annoCanvas').style.transform=transform;
+  document.querySelector('.cam-wrap').classList.toggle('landscape',wantsLandscape);
+  updateViewButtons();
+  resizeACanvas();
+}
+
+async function toggleFullscreen(){
+  if(document.fullscreenElement)await exitFullscreen();
+  else await enterFullscreen();
+  await applyCameraView({attemptLock:orientationMode==='landscape'});
+}
+
+async function toggleOrientationMode(){
+  orientationMode=orientationMode==='portrait'?'landscape':'portrait';
+  await applyCameraView({attemptLock:true});
+  aRedraw();
 }
 
 async function init(){
@@ -388,8 +437,8 @@ function resizeACanvas() {
 }
 new ResizeObserver(resizeACanvas).observe(document.body);
 
-// Mirror annotations only when the user has mirror preview enabled.
-function flipX(x) { return previewMirrored ? 1 - x : x; }
+// User preview stays mirrored to match the live local preview.
+function flipX(x) { return 1 - x; }
 
 function handleAnno(msg) {
   const color = msg._color || '#FF4F00';
@@ -527,7 +576,10 @@ function aSchedFade() {
   aFadeRaf = requestAnimationFrame(tick);
 }
 
-applyPreviewFlip();
+document.addEventListener('fullscreenchange',()=>applyCameraView({attemptLock:!!document.fullscreenElement&&orientationMode==='landscape'}));
+window.addEventListener('resize',()=>resizeACanvas());
+
+applyCameraView();
 </script>
 </body>
 </html>
