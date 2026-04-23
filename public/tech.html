@@ -524,9 +524,24 @@
 
 <script>
 const WS_BASE = location.protocol==='https:'?'wss://'+location.host:'ws://'+location.host;
-const STUN = [{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
+// Fallback used only if /api/ice-servers fetch fails.
+const STUN_FALLBACK = [{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
 
 let ws=null,pc=null,activeToken=null,activeSession=null,sessStart=null,durInt=null,ttlInt=null,liveSessions=[];
+let _iceServers=null;
+async function getIceServers(){
+  if(_iceServers)return _iceServers;
+  try{
+    const res=await fetch('/api/ice-servers');
+    const data=await res.json();
+    _iceServers=data.iceServers||STUN_FALLBACK;
+    console.log('[ICE] loaded servers:',_iceServers.map(s=>s.urls));
+  }catch(e){
+    console.warn('[ICE] fetch failed, using STUN fallback:',e);
+    _iceServers=STUN_FALLBACK;
+  }
+  return _iceServers;
+}
 
 let _wsPingTimer=null;
 function connectWS(){
@@ -561,9 +576,11 @@ function joinAsTech(token){sendWS({type:'join',token,role:'tech'});activeToken=t
 
 async function startRTC(){
   tearPeer();
-  pc=new RTCPeerConnection({iceServers:STUN});
+  const iceServers=await getIceServers();
+  pc=new RTCPeerConnection({iceServers});
   pc.onicecandidate=({candidate})=>{if(candidate)sendWS({type:'candidate',candidate});};
   pc.ontrack=e=>{
+    console.log('[PC] ontrack — stream received');
     const v=document.getElementById('remoteVideo');
     v.srcObject=e.streams[0]; v.classList.add('on');
     document.getElementById('waitScreen').classList.add('off');
@@ -576,12 +593,16 @@ async function startRTC(){
   };
   pc.onconnectionstatechange=()=>{
     const s=pc.connectionState;
+    console.log('[PC] connectionState:',s);
     document.getElementById('statState').textContent=s;
     if(s==='failed'||s==='disconnected'){liveBadge(false);setConn('idle');}
   };
+  pc.oniceconnectionstatechange=()=>console.log('[ICE] connectionState:',pc.iceConnectionState);
+  pc.onicegatheringstatechange=()=>console.log('[ICE] gatheringState:',pc.iceGatheringState);
+  pc.onicecandidateerror=e=>console.warn('[ICE] candidate error:',e.errorCode,e.errorText,'url=',e.url);
   const offer=await pc.createOffer({offerToReceiveVideo:true,offerToReceiveAudio:true});
   await pc.setLocalDescription(offer);
-  sendWS({type:'offer',sdp:offer.sdp,type:offer.type});
+  sendWS({type:'offer',sdp:offer.sdp});
 }
 function tearPeer(){
   if(pc){try{pc.close();}catch(_){}pc=null;}

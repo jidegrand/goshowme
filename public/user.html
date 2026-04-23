@@ -234,10 +234,25 @@
 
 <script>
 const WS_BASE=location.protocol==='https:'?'wss://'+location.host:'ws://'+location.host;
-const STUN=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
+// Fallback used only if /api/ice-servers fetch fails.
+const STUN_FALLBACK=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
 const token=location.pathname.split('/join/')[1]?.split('/')[0];
 
 let ws=null,pc=null,localStream=null,meta=null,ttlTimer=null;
+let _iceServers=null;
+async function getIceServers(){
+  if(_iceServers)return _iceServers;
+  try{
+    const res=await fetch('/api/ice-servers');
+    const data=await res.json();
+    _iceServers=data.iceServers||STUN_FALLBACK;
+    console.log('[ICE] loaded servers:',_iceServers.map(s=>s.urls));
+  }catch(e){
+    console.warn('[ICE] fetch failed, using STUN fallback:',e);
+    _iceServers=STUN_FALLBACK;
+  }
+  return _iceServers;
+}
 
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));document.getElementById(id).classList.add('on');}
 
@@ -295,17 +310,23 @@ async function handle(msg){
 }
 
 async function handleOffer(offer){
-  pc=new RTCPeerConnection({iceServers:STUN});
+  const iceServers=await getIceServers();
+  pc=new RTCPeerConnection({iceServers});
   pc.onicecandidate=({candidate})=>{if(candidate)sendWS({type:'candidate',candidate});};
   pc.onconnectionstatechange=()=>{
-    if(pc.connectionState==='connected')show('scrCamera');
-    if(['failed','disconnected'].includes(pc.connectionState))show('scrWait');
+    const s=pc.connectionState;
+    console.log('[PC] connectionState:',s);
+    if(s==='connected')show('scrCamera');
+    if(['failed','disconnected'].includes(s))show('scrWait');
   };
+  pc.oniceconnectionstatechange=()=>console.log('[ICE] connectionState:',pc.iceConnectionState);
+  pc.onicegatheringstatechange=()=>console.log('[ICE] gatheringState:',pc.iceGatheringState);
+  pc.onicecandidateerror=e=>console.warn('[ICE] candidate error:',e.errorCode,e.errorText,'url=',e.url);
   if(localStream)localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
   await pc.setRemoteDescription(new RTCSessionDescription(offer));
   const answer=await pc.createAnswer();
   await pc.setLocalDescription(answer);
-  sendWS({type:'answer',sdp:answer.sdp,type:answer.type});
+  sendWS({type:'answer',sdp:answer.sdp});
 }
 
 function endSession(){sendWS({type:'end'});cleanup();show('scrEnded');}

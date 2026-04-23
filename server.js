@@ -86,6 +86,51 @@ const httpServer = http.createServer((req, res) => {
     return;
   }
 
+  // REST: ICE servers (STUN + TURN). Served to both tech and user clients
+  // so they construct RTCPeerConnection with the same config.
+  //
+  // Configure TURN via env vars on Railway:
+  //   TURN_URL         — comma-separated turn: URLs, e.g.
+  //                      "turn:global.turn.twilio.com:3478?transport=udp,turn:global.turn.twilio.com:3478?transport=tcp"
+  //   TURN_USERNAME    — TURN username / credential key
+  //   TURN_CREDENTIAL  — TURN password / credential
+  //
+  // Without these, we fall back to Open Relay Project (free public TURN,
+  // rate-limited — fine for testing, swap in Twilio/Xirsys for production).
+  if (req.method === 'GET' && url.pathname === '/api/ice-servers') {
+    const iceServers = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ];
+
+    if (process.env.TURN_URL && process.env.TURN_USERNAME && process.env.TURN_CREDENTIAL) {
+      iceServers.push({
+        urls: process.env.TURN_URL.split(',').map(u => u.trim()).filter(Boolean),
+        username: process.env.TURN_USERNAME,
+        credential: process.env.TURN_CREDENTIAL,
+      });
+    } else {
+      // Fallback: Open Relay Project. Heavily rate-limited — replace in production.
+      iceServers.push({
+        urls: [
+          'turn:openrelay.metered.ca:80',
+          'turn:openrelay.metered.ca:443',
+          'turn:openrelay.metered.ca:443?transport=tcp',
+        ],
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
+      });
+    }
+
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-store',
+    });
+    res.end(JSON.stringify({ iceServers }));
+    return;
+  }
+
   // REST: session status
   if (req.method === 'GET' && url.pathname.startsWith('/api/session/')) {
     const token = url.pathname.split('/')[3];
@@ -283,5 +328,12 @@ wss.on('connection', (ws, req) => {
 httpServer.listen(PORT, () => {
   console.log(`\n  Remote Cam Support running`);
   console.log(`  Dashboard : ${BASE_URL}/`);
-  console.log(`  Port      : ${PORT}\n`);
+  console.log(`  Port      : ${PORT}`);
+  if (process.env.TURN_URL && process.env.TURN_USERNAME && process.env.TURN_CREDENTIAL) {
+    console.log(`  TURN      : configured (${process.env.TURN_URL.split(',').length} url(s))`);
+  } else {
+    console.warn(`  TURN      : ⚠ not configured — using free Open Relay fallback (rate-limited)`);
+    console.warn(`              Set TURN_URL / TURN_USERNAME / TURN_CREDENTIAL env vars for production.`);
+  }
+  console.log('');
 });
