@@ -95,11 +95,43 @@
   .cam-bottom { position: absolute; bottom: 0; left: 0; right: 0; padding: 14px; background: linear-gradient(transparent,rgba(0,0,0,.48)); }
   .by-label { font-size: 11px; color: rgba(255,255,255,.6); font-family: var(--mono); }
   .by-name { font-size: 13px; color: #fff; font-weight: 600; margin-top: 2px; }
+  .cam-overlay-actions {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 9;
+    display: none;
+    gap: 8px;
+    pointer-events: auto;
+  }
+  .camera-shell.fullscreen-mode .cam-overlay-actions { display: flex; }
+  .overlay-btn {
+    background: rgba(0,0,0,.6);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 999px;
+    padding: 9px 12px;
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .overlay-btn.danger {
+    background: rgba(229,62,62,.22);
+    border-color: rgba(229,62,62,.35);
+    color: #ffd7dc;
+  }
 
   .info-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 11px 15px; font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 11px; line-height: 1.5; }
   .info-bar strong { color: var(--text); font-weight: 600; }
   .camera-actions { display: flex; gap: 10px; width: 100%; margin-bottom: 11px; }
   .camera-shell.fullscreen-mode .camera-actions { margin-top: 12px; }
+  .camera-shell.fullscreen-mode .info-bar,
+  .camera-shell.fullscreen-mode .camera-actions,
+  .camera-shell.fullscreen-mode .btn-end,
+  .camera-shell.fullscreen-mode + .powered { display: none; }
   .btn-secondary { flex: 1; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 12px; font-family: var(--font); font-size: 13px; font-weight: 600; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
   .btn-secondary:hover { border-color: var(--accent-mid); color: var(--accent); }
   .btn-secondary.active { background: var(--accent-soft); border-color: var(--accent-mid); color: var(--accent); }
@@ -212,6 +244,10 @@
         </div>
         <canvas id="annoCanvas"></canvas>
       </div>
+      <div class="cam-overlay-actions">
+        <button class="overlay-btn" id="overlayFullscreenBtn" onclick="toggleFullscreen()">Exit full screen</button>
+        <button class="overlay-btn danger" onclick="endSession()">End session</button>
+      </div>
     </div>
     <div class="info-bar">Point your phone at the screen or area you need help with.<br><strong>Your tech can see your camera feed live.</strong></div>
     <div class="camera-actions">
@@ -293,6 +329,7 @@ function isFullscreenActive(){
 function updateViewButtons(){
   document.getElementById('fullscreenBtn').classList.toggle('active',isFullscreenActive());
   document.getElementById('fullscreenBtn').textContent=isFullscreenActive()?'Exit full screen':'Full screen';
+  document.getElementById('overlayFullscreenBtn').textContent=isFullscreenActive()?'Exit full screen':'Full screen';
   document.getElementById('orientationBtn').classList.toggle('active',orientationMode==='landscape');
   document.getElementById('orientationBtn').textContent=orientationMode==='landscape'?'Back to portrait':'Landscape mode';
 }
