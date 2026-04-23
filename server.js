@@ -52,6 +52,99 @@ function safeSend(ws, data) {
   } catch (_) {}
 }
 
+// ── TURN credential minting ──────────────────────────────────────────────────
+
+function httpsJson({ hostname, port, path, method, headers, body }) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      { hostname, port: port || 443, path, method, headers },
+      r => {
+        let data = '';
+        r.on('data', c => (data += c));
+        r.on('end', () => {
+          if (r.statusCode < 200 || r.statusCode >= 300) {
+            return reject(new Error(`HTTP ${r.statusCode}: ${data.slice(0, 200)}`));
+          }
+          try { resolve(JSON.parse(data)); } catch (e) { reject(e); }
+        });
+      }
+    );
+    req.on('error', reject);
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+const STUN_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+];
+
+// Tiny cache to avoid minting a fresh token on every page load.
+let _iceCache = { servers: null, expiresAt: 0 };
+
+async function getIceServers() {
+  if (_iceCache.servers && Date.now() < _iceCache.expiresAt) {
+    return _iceCache.servers;
+  }
+
+  const servers = [...STUN_SERVERS];
+  const ttlMs = 60 * 60 * 1000; // cache for 1 hour; creds are longer-lived
+
+  // 1. Cloudflare Realtime TURN
+  if (process.env.CLOUDFLARE_TURN_KEY_ID && process.env.CLOUDFLARE_TURN_API_TOKEN) {
+    const body = JSON.stringify({ ttl: 24 * 60 * 60 });
+    const data = await httpsJson({
+      hostname: 'rtc.live.cloudflare.com',
+      path: `/v1/turn/keys/${process.env.CLOUDFLARE_TURN_KEY_ID}/credentials/generate`,
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.CLOUDFLARE_TURN_API_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+      body,
+    });
+    // Cloudflare returns { iceServers: { urls: [...], username, credential } }
+    if (data.iceServers) servers.push(data.iceServers);
+  }
+  // 2. Metered.ca
+  else if (process.env.METERED_DOMAIN && process.env.METERED_API_KEY) {
+    const data = await httpsJson({
+      hostname: process.env.METERED_DOMAIN,
+      path: `/api/v1/turn/credentials?apiKey=${encodeURIComponent(process.env.METERED_API_KEY)}`,
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+    // Metered returns an array of ICE server objects
+    if (Array.isArray(data)) {
+      for (const s of data) {
+        // Skip their STUN entries — we already have Google's
+        if (typeof s.urls === 'string' && s.urls.startsWith('stun:')) continue;
+        servers.push(s);
+      }
+    }
+  }
+  // 3. Static creds (self-hosted coturn, Twilio static, etc.)
+  else if (process.env.TURN_URL && process.env.TURN_USERNAME && process.env.TURN_CREDENTIAL) {
+    servers.push({
+      urls: process.env.TURN_URL.split(',').map(u => u.trim()).filter(Boolean),
+      username: process.env.TURN_USERNAME,
+      credential: process.env.TURN_CREDENTIAL,
+    });
+  }
+
+  _iceCache = { servers, expiresAt: Date.now() + ttlMs };
+  return servers;
+}
+
+function turnProviderName() {
+  if (process.env.CLOUDFLARE_TURN_KEY_ID && process.env.CLOUDFLARE_TURN_API_TOKEN) return 'Cloudflare Realtime';
+  if (process.env.METERED_DOMAIN && process.env.METERED_API_KEY) return 'Metered.ca';
+  if (process.env.TURN_URL && process.env.TURN_USERNAME && process.env.TURN_CREDENTIAL) return 'static';
+  return null;
+}
+
 // ── HTTP server ──────────────────────────────────────────────────────────────
 
 const MIME = {
@@ -89,45 +182,50 @@ const httpServer = http.createServer((req, res) => {
   // REST: ICE servers (STUN + TURN). Served to both tech and user clients
   // so they construct RTCPeerConnection with the same config.
   //
-  // Configure TURN via env vars on Railway:
-  //   TURN_URL         — comma-separated turn: URLs, e.g.
-  //                      "turn:global.turn.twilio.com:3478?transport=udp,turn:global.turn.twilio.com:3478?transport=tcp"
-  //   TURN_USERNAME    — TURN username / credential key
-  //   TURN_CREDENTIAL  — TURN password / credential
+  // Three providers supported, checked in this order:
   //
-  // Without these, we fall back to Open Relay Project (free public TURN,
-  // rate-limited — fine for testing, swap in Twilio/Xirsys for production).
+  //   1. Cloudflare Realtime TURN (recommended — 1TB/month free)
+  //      CLOUDFLARE_TURN_KEY_ID     — from Cloudflare Dashboard → Realtime → TURN
+  //      CLOUDFLARE_TURN_API_TOKEN  — API token for that TURN app
+  //
+  //   2. Metered.ca (free tier after signup, ~500MB/month)
+  //      METERED_DOMAIN   — your subdomain, e.g. "goshowme.metered.live"
+  //      METERED_API_KEY  — from metered.ca dashboard
+  //
+  //   3. Static TURN creds (e.g. self-hosted coturn, or Twilio static creds)
+  //      TURN_URL         — comma-separated turn: URLs
+  //      TURN_USERNAME    — TURN username
+  //      TURN_CREDENTIAL  — TURN password
+  //
+  // If none are set, STUN-only is returned with a loud warning — peers behind
+  // symmetric NATs / carrier CGNAT will FAIL to connect. This is the bug you
+  // just hit. Configure one of the options above.
   if (req.method === 'GET' && url.pathname === '/api/ice-servers') {
-    const iceServers = [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-    ];
-
-    if (process.env.TURN_URL && process.env.TURN_USERNAME && process.env.TURN_CREDENTIAL) {
-      iceServers.push({
-        urls: process.env.TURN_URL.split(',').map(u => u.trim()).filter(Boolean),
-        username: process.env.TURN_USERNAME,
-        credential: process.env.TURN_CREDENTIAL,
+    getIceServers()
+      .then(iceServers => {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-store',
+        });
+        res.end(JSON.stringify({ iceServers }));
+      })
+      .catch(err => {
+        console.error('[ICE] provider error:', err.message);
+        // Still return STUN so the client can at least try.
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-store',
+        });
+        res.end(JSON.stringify({
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+          ],
+          warning: 'TURN provider failed: ' + err.message,
+        }));
       });
-    } else {
-      // Fallback: Open Relay Project. Heavily rate-limited — replace in production.
-      iceServers.push({
-        urls: [
-          'turn:openrelay.metered.ca:80',
-          'turn:openrelay.metered.ca:443',
-          'turn:openrelay.metered.ca:443?transport=tcp',
-        ],
-        username: 'openrelayproject',
-        credential: 'openrelayproject',
-      });
-    }
-
-    res.writeHead(200, {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'no-store',
-    });
-    res.end(JSON.stringify({ iceServers }));
     return;
   }
 
@@ -329,11 +427,15 @@ httpServer.listen(PORT, () => {
   console.log(`\n  Remote Cam Support running`);
   console.log(`  Dashboard : ${BASE_URL}/`);
   console.log(`  Port      : ${PORT}`);
-  if (process.env.TURN_URL && process.env.TURN_USERNAME && process.env.TURN_CREDENTIAL) {
-    console.log(`  TURN      : configured (${process.env.TURN_URL.split(',').length} url(s))`);
+  const provider = turnProviderName();
+  if (provider) {
+    console.log(`  TURN      : ${provider}`);
   } else {
-    console.warn(`  TURN      : ⚠ not configured — using free Open Relay fallback (rate-limited)`);
-    console.warn(`              Set TURN_URL / TURN_USERNAME / TURN_CREDENTIAL env vars for production.`);
+    console.warn(`  TURN      : ⚠ NOT CONFIGURED — peer connections WILL FAIL behind strict NAT/CGNAT.`);
+    console.warn(`              Set ONE of these env-var sets on Railway:`);
+    console.warn(`                • CLOUDFLARE_TURN_KEY_ID + CLOUDFLARE_TURN_API_TOKEN  (recommended)`);
+    console.warn(`                • METERED_DOMAIN + METERED_API_KEY`);
+    console.warn(`                • TURN_URL + TURN_USERNAME + TURN_CREDENTIAL  (static)`);
   }
   console.log('');
 });
