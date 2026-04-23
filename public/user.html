@@ -74,15 +74,9 @@
   .camera-shell { width: 100%; display: flex; flex-direction: column; }
   .camera-shell.fullscreen-mode { max-width: none; min-height: 100dvh; background: #000; }
   .cam-wrap { width: 100%; aspect-ratio: 9/16; background: #000; border-radius: 20px; overflow: hidden; position: relative; margin-bottom: 14px; max-height: 54dvh; }
-  .camera-shell.fullscreen-mode .cam-wrap { flex: 1; max-height: none; border-radius: 0; margin-bottom: 0; }
+  .camera-shell.fullscreen-mode .cam-wrap { width: 100vw; height: 100dvh; aspect-ratio: auto; max-height: none; border-radius: 0; margin-bottom: 0; }
   .cam-stage { position: absolute; inset: 0; overflow: hidden; }
   #localVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); transform-origin: center center; transition: transform .18s ease; }
-  @media (orientation: landscape) {
-    .camera-shell.fullscreen-mode .cam-wrap {
-      aspect-ratio: auto;
-      height: 100dvh;
-    }
-  }
 
   .cam-hud { position: absolute; inset: 0; pointer-events: none; }
   .cam-top { display: flex; justify-content: space-between; align-items: center; padding: 12px 13px; }
@@ -353,14 +347,12 @@ async function exitFullscreen(){
   if(pseudoFullscreen){
     pseudoFullscreen=false;
     applyFullscreenClass(false);
-    if(screen.orientation?.unlock) screen.orientation.unlock();
     updateViewButtons();
     return true;
   }
   const fn=document.exitFullscreen?.bind(document)||document.webkitExitFullscreen?.bind(document);
   if(!fn)return false;
   await fn();
-  if(screen.orientation?.unlock) screen.orientation.unlock();
   applyFullscreenClass(false);
   return true;
 }
