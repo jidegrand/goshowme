@@ -75,16 +75,14 @@
   .camera-shell.fullscreen-mode { max-width: none; min-height: 100dvh; background: #000; }
   .cam-wrap { width: 100%; aspect-ratio: 9/16; background: #000; border-radius: 20px; overflow: hidden; position: relative; margin-bottom: 14px; max-height: 54dvh; }
   .camera-shell.fullscreen-mode .cam-wrap { flex: 1; max-height: none; border-radius: 0; margin-bottom: 0; }
-  .cam-wrap.landscape { aspect-ratio: 16/9; max-height: 72dvh; }
   .cam-stage { position: absolute; inset: 0; overflow: hidden; }
-  .cam-stage.fallback-landscape {
-    left: 50%;
-    top: 50%;
-    inset: auto;
-    transform: translate(-50%, -50%) rotate(90deg);
-    transform-origin: center center;
-  }
   #localVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); transform-origin: center center; transition: transform .18s ease; }
+  @media (orientation: landscape) {
+    .camera-shell.fullscreen-mode .cam-wrap {
+      aspect-ratio: auto;
+      height: 100dvh;
+    }
+  }
 
   .cam-hud { position: absolute; inset: 0; pointer-events: none; }
   .cam-top { display: flex; justify-content: space-between; align-items: center; padding: 12px 13px; }
@@ -252,7 +250,6 @@
     <div class="info-bar">Point your phone at the screen or area you need help with.<br><strong>Your tech can see your camera feed live.</strong></div>
     <div class="camera-actions">
       <button class="btn-secondary" id="fullscreenBtn" onclick="toggleFullscreen()">Full screen</button>
-      <button class="btn-secondary" id="orientationBtn" onclick="toggleOrientationMode()">Landscape mode</button>
     </div>
     <button class="btn-end" onclick="endSession()">End session</button>
   </div>
@@ -302,8 +299,6 @@ const STUN_FALLBACK=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.g
 const token=location.pathname.split('/join/')[1]?.split('/')[0];
 
 let ws=null,pc=null,localStream=null,meta=null,ttlTimer=null;
-let orientationMode='portrait';
-let orientationLockActive=false;
 let pseudoFullscreen=false;
 let _iceServers=null;
 async function getIceServers(){
@@ -330,8 +325,6 @@ function updateViewButtons(){
   document.getElementById('fullscreenBtn').classList.toggle('active',isFullscreenActive());
   document.getElementById('fullscreenBtn').textContent=isFullscreenActive()?'Exit full screen':'Full screen';
   document.getElementById('overlayFullscreenBtn').textContent=isFullscreenActive()?'Exit full screen':'Full screen';
-  document.getElementById('orientationBtn').classList.toggle('active',orientationMode==='landscape');
-  document.getElementById('orientationBtn').textContent=orientationMode==='landscape'?'Back to portrait':'Landscape mode';
 }
 
 function applyFullscreenClass(on){
@@ -373,30 +366,10 @@ async function exitFullscreen(){
 }
 
 async function applyCameraView({attemptLock=false}={}){
-  const wantsLandscape=orientationMode==='landscape';
-  const wrap=document.getElementById('camWrap');
   const stage=document.getElementById('camStage');
-  orientationLockActive=false;
-
-  if(attemptLock&&screen.orientation?.lock){
-    try{
-      if(wantsLandscape&&!isFullscreenActive())await enterFullscreen();
-      await screen.orientation.lock(wantsLandscape?'landscape':'portrait');
-      orientationLockActive=!!document.fullscreenElement&&wantsLandscape;
-    }catch(_){}
-  }
-
-  const fallbackRotate=wantsLandscape&&!orientationLockActive;
   document.getElementById('localVideo').style.transform='scaleX(-1)';
-  wrap.classList.toggle('landscape',wantsLandscape);
-  stage.classList.toggle('fallback-landscape',fallbackRotate);
-  if(fallbackRotate){
-    stage.style.width=`${wrap.clientHeight}px`;
-    stage.style.height=`${wrap.clientWidth}px`;
-  }else{
-    stage.style.width='';
-    stage.style.height='';
-  }
+  stage.style.width='';
+  stage.style.height='';
   applyFullscreenClass(isFullscreenActive());
   updateViewButtons();
   resizeACanvas();
@@ -405,13 +378,7 @@ async function applyCameraView({attemptLock=false}={}){
 async function toggleFullscreen(){
   if(isFullscreenActive())await exitFullscreen();
   else await enterFullscreen();
-  await applyCameraView({attemptLock:orientationMode==='landscape'});
-}
-
-async function toggleOrientationMode(){
-  orientationMode=orientationMode==='portrait'?'landscape':'portrait';
-  await applyCameraView({attemptLock:true});
-  aRedraw();
+  await applyCameraView();
 }
 
 async function init(){
@@ -667,9 +634,12 @@ function aSchedFade() {
 
 document.addEventListener('fullscreenchange',()=>{
   if(!document.fullscreenElement)applyFullscreenClass(false);
-  applyCameraView({attemptLock:!!document.fullscreenElement&&orientationMode==='landscape'});
+  applyCameraView();
 });
-window.addEventListener('resize',()=>resizeACanvas());
+window.addEventListener('resize',()=>{
+  resizeACanvas();
+  applyCameraView();
+});
 
 applyCameraView();
 </script>
