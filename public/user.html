@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>GoShowMe — Support Session</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --border: rgba(0,0,0,0.08);
+    --text: #111318;
+    --muted: #6b7280;
+    --light: #9ca3af;
+    --accent: #FF4F00;
+    --accent-soft: rgba(255,79,0,0.08);
+    --accent-mid: rgba(255,79,0,0.18);
+    --green: #00b37e;
+    --green-soft: rgba(0,179,126,0.1);
+    --red: #e53e3e;
+    --red-soft: rgba(229,62,62,0.08);
+    --font: 'Plus Jakarta Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 20px; }
+
+  .screen { display: none; width: 100%; max-width: 390px; flex-direction: column; align-items: center; animation: up .28s ease; }
+  .screen.on { display: flex; }
+  @keyframes up { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 28px 22px; width: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 28px rgba(0,0,0,0.06); }
+
+  /* brand */
+  .brand { display: flex; align-items: center; gap: 8px; justify-content: center; margin-bottom: 26px; }
+  .brand-mark { width: 30px; height: 30px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .brand-mark svg { width: 16px; height: 16px; }
+  .brand-name { font-size: 15px; font-weight: 800; letter-spacing: -0.04em; }
+  .wm-go { color: var(--accent); }
+  .wm-rest { color: var(--text); }
+  .wm-me { color: var(--text); opacity: 0.3; }
+
+  /* consent */
+  .consent-head { text-align: center; margin-bottom: 22px; }
+  .consent-ico { width: 54px; height: 54px; background: var(--accent-soft); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
+  .consent-ico svg { width: 24px; height: 24px; color: var(--accent); }
+  .consent-title { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 5px; }
+  .consent-by { font-size: 13px; color: var(--muted); }
+  .consent-by strong { color: var(--text); font-weight: 600; }
+
+  .info-row { display: flex; align-items: flex-start; gap: 11px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .info-row:first-of-type { border-top: 1px solid var(--border); }
+  .info-ico { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .info-ico svg { width: 14px; height: 14px; }
+  .info-ico.orange { background: var(--accent-soft); color: var(--accent); }
+  .info-ico.green { background: var(--green-soft); color: var(--green); }
+  .info-ico.amber { background: rgba(217,119,6,.1); color: #d97706; }
+  .info-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .info-sub { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  .consent-note { font-size: 11px; color: var(--light); text-align: center; margin: 14px 0 18px; line-height: 1.6; }
+
+  .btn-allow { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: 12px; padding: 15px; font-family: var(--font); font-size: 15px; font-weight: 700; cursor: pointer; transition: opacity .15s, transform .1s; margin-bottom: 9px; letter-spacing: -.01em; }
+  .btn-allow:hover { opacity: .9; }
+  .btn-allow:active { transform: scale(.98); }
+  .btn-decline { width: 100%; background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 12px; padding: 12px; font-family: var(--font); font-size: 13px; cursor: pointer; transition: color .15s; }
+  .btn-decline:hover { color: var(--text); }
+
+  /* camera */
+  .cam-wrap { width: 100%; aspect-ratio: 9/16; background: #000; border-radius: 20px; overflow: hidden; position: relative; margin-bottom: 14px; max-height: 54dvh; }
+  #localVideo { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+
+  .cam-hud { position: absolute; inset: 0; pointer-events: none; }
+  .cam-top { display: flex; justify-content: space-between; align-items: center; padding: 12px 13px; }
+  .live-pill { display: flex; align-items: center; gap: 5px; background: rgba(229,62,62,.88); border-radius: 20px; padding: 4px 10px; font-size: 11px; font-weight: 700; color: #fff; font-family: var(--mono); letter-spacing: .04em; }
+  .live-pulse { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: blink 1.2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1}50%{opacity:.25} }
+  .ttl-pill { background: rgba(0,0,0,.48); border-radius: 20px; padding: 4px 10px; font-size: 11px; font-family: var(--mono); color: rgba(255,255,255,.82); }
+  .cam-bottom { position: absolute; bottom: 0; left: 0; right: 0; padding: 14px; background: linear-gradient(transparent,rgba(0,0,0,.48)); }
+  .by-label { font-size: 11px; color: rgba(255,255,255,.6); font-family: var(--mono); }
+  .by-name { font-size: 13px; color: #fff; font-weight: 600; margin-top: 2px; }
+
+  .info-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 11px 15px; font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 11px; line-height: 1.5; }
+  .info-bar strong { color: var(--text); font-weight: 600; }
+
+  .btn-end { width: 100%; background: var(--red-soft); color: var(--red); border: 1px solid rgba(229,62,62,.2); border-radius: 12px; padding: 12px; font-family: var(--font); font-size: 13px; font-weight: 500; cursor: pointer; transition: background .15s; }
+  .btn-end:hover { background: rgba(229,62,62,.14); }
+
+  /* states */
+  .state-ico { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 18px; }
+  .state-ico svg { width: 26px; height: 26px; }
+  .state-ico.red { background: var(--red-soft); color: var(--red); }
+  .state-ico.green { background: var(--green-soft); color: var(--green); }
+  .state-ico.neutral { background: var(--bg); color: var(--muted); }
+  .state-title { font-size: 18px; font-weight: 700; text-align: center; margin-bottom: 7px; letter-spacing: -0.02em; }
+  .state-sub { font-size: 13px; color: var(--muted); text-align: center; line-height: 1.6; }
+
+  /* waiting */
+  .wait-dots { display: flex; gap: 6px; justify-content: center; margin-bottom: 18px; }
+  .wait-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: bounce 1.2s ease infinite; }
+  .wait-dot:nth-child(2){animation-delay:.15s}.wait-dot:nth-child(3){animation-delay:.3s}
+  @keyframes bounce{0%,100%{transform:translateY(0);opacity:.35}50%{transform:translateY(-7px);opacity:1}}
+
+  /* powered by footer */
+  .powered { margin-top: 20px; font-family: var(--mono); font-size: 10px; color: var(--light); letter-spacing: .04em; }
+
+  /* annotation canvas overlay on user phone */
+  #annoCanvas {
+    position: absolute; inset: 0; z-index: 5;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div class="screen on" id="scrLoad">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+    <div class="brand-mark" style="width:36px;height:36px;border-radius:10px;">
+      <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="10" height="8" rx="2" fill="white"/><path d="M11 6.5L15 4.5V11.5L11 9.5V6.5Z" fill="white"/></svg>
+    </div>
+    <div style="font-family:var(--mono);font-size:12px;color:var(--light);">Verifying session…</div>
+  </div>
+</div>
+
+<!-- Consent -->
+<div class="screen" id="scrConsent">
+  <div class="card">
+    <div class="brand">
+      <div class="brand-mark"><svg viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="10" height="8" rx="2" fill="white"/><path d="M11 6.5L15 4.5V11.5L11 9.5V6.5Z" fill="white"/></svg></div>
+      <span class="brand-name"><span class="wm-go">Go</span><span class="wm-rest">Show</span><span class="wm-me">Me</span></span>
+    </div>
+
+    <div class="consent-head">
+      <div class="consent-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      </div>
+      <div class="consent-title">Camera access requested</div>
+      <div class="consent-by">Support session with <strong id="consentLabel">your tech</strong></div>
+    </div>
+
+    <div class="info-row">
+      <div class="info-ico orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+      <div><div class="info-title">Live camera stream</div><div class="info-sub">Your rear camera will be shared with your support tech so they can guide you in real time.</div></div>
+    </div>
+    <div class="info-row">
+      <div class="info-ico green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div><div class="info-title">Not recorded by default</div><div class="info-sub">No video is stored on any server unless your tech explicitly enables recording.</div></div>
+    </div>
+    <div class="info-row">
+      <div class="info-ico amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+      <div><div class="info-title" id="consentTTL">Session expires in 30 min</div><div class="info-sub">This is a one-time link. It stops working automatically when the session ends.</div></div>
+    </div>
+
+    <div class="consent-note">By tapping Allow, you agree to share your camera for this session only. You can end the session at any time.</div>
+    <button class="btn-allow" onclick="requestCamera()">Allow camera access</button>
+    <button class="btn-decline" onclick="show('scrDeclined')">Decline</button>
+  </div>
+  <div class="powered">goshowmeapp.com · secure · peer-to-peer</div>
+</div>
+
+<!-- Waiting for tech -->
+<div class="screen" id="scrWait">
+  <div class="card" style="text-align:center;padding:40px 22px;">
+    <div class="brand" style="margin-bottom:28px;">
+      <div class="brand-mark"><svg viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="10" height="8" rx="2" fill="white"/><path d="M11 6.5L15 4.5V11.5L11 9.5V6.5Z" fill="white"/></svg></div>
+      <span class="brand-name"><span class="wm-go">Go</span><span class="wm-rest">Show</span><span class="wm-me">Me</span></span>
+    </div>
+    <div class="wait-dots"><div class="wait-dot"></div><div class="wait-dot"></div><div class="wait-dot"></div></div>
+    <div class="state-title" style="font-size:16px;">Waiting for your tech…</div>
+    <div class="state-sub">Camera is ready. Your tech will connect shortly.</div>
+  </div>
+</div>
+
+<!-- Camera active -->
+<div class="screen" id="scrCamera">
+  <div class="cam-wrap">
+    <video id="localVideo" autoplay playsinline muted></video>
+    <div class="cam-hud">
+      <div class="cam-top">
+        <div class="live-pill"><div class="live-pulse"></div>LIVE</div>
+        <div class="ttl-pill" id="camTtl">–</div>
+      </div>
+      <div class="cam-bottom">
+        <div class="by-label">Viewed by</div>
+        <div class="by-name" id="byName">Support tech</div>
+      </div>
+    </div>
+    <canvas id="annoCanvas"></canvas>
+  </div>
+  <div class="info-bar">Point your phone at the screen or area you need help with.<br><strong>Your tech can see your camera feed live.</strong></div>
+  <button class="btn-end" onclick="endSession()">End session</button>
+  <div class="powered" style="margin-top:14px;">goshowmeapp.com</div>
+</div>
+
+<!-- Expired -->
+<div class="screen" id="scrExpired">
+  <div class="card" style="text-align:center;padding:40px 22px;">
+    <div class="brand" style="margin-bottom:24px;">
+      <div class="brand-mark"><svg viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="10" height="8" rx="2" fill="white"/><path d="M11 6.5L15 4.5V11.5L11 9.5V6.5Z" fill="white"/></svg></div>
+      <span class="brand-name"><span class="wm-go">Go</span><span class="wm-rest">Show</span><span class="wm-me">Me</span></span>
+    </div>
+    <div class="state-ico red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+    <div class="state-title" id="expTitle">Session expired</div>
+    <div class="state-sub" id="expSub">This link is no longer valid. Ask your support tech to send a new one.</div>
+  </div>
+</div>
+
+<!-- Declined -->
+<div class="screen" id="scrDeclined">
+  <div class="card" style="text-align:center;padding:40px 22px;">
+    <div class="state-ico neutral"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+    <div class="state-title">Camera declined</div>
+    <div class="state-sub">You can close this page. Contact your support tech if you need to reconnect.</div>
+  </div>
+</div>
+
+<!-- Ended -->
+<div class="screen" id="scrEnded">
+  <div class="card" style="text-align:center;padding:40px 22px;">
+    <div class="brand" style="margin-bottom:24px;">
+      <div class="brand-mark"><svg viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="10" height="8" rx="2" fill="white"/><path d="M11 6.5L15 4.5V11.5L11 9.5V6.5Z" fill="white"/></svg></div>
+      <span class="brand-name"><span class="wm-go">Go</span><span class="wm-rest">Show</span><span class="wm-me">Me</span></span>
+    </div>
+    <div class="state-ico green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <div class="state-title">Session ended</div>
+    <div class="state-sub">Your camera has been disconnected. You can safely close this page.</div>
+  </div>
+  <div class="powered">goshowmeapp.com</div>
+</div>
+
+<script>
+const WS_BASE=location.protocol==='https:'?'wss://'+location.host:'ws://'+location.host;
+const STUN=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
+const token=location.pathname.split('/join/')[1]?.split('/')[0];
+
+let ws=null,pc=null,localStream=null,meta=null,ttlTimer=null;
+
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));document.getElementById(id).classList.add('on');}
+
+async function init(){
+  if(!token)return expire('Invalid link','This link does not contain a valid session token.');
+  try{
+    const res=await fetch(`/api/session/${token}`);
+    const data=await res.json();
+    if(!data.valid)return expire('Session expired','This link is no longer valid. Ask your tech for a new one.');
+    meta=data;
+    const mins=Math.max(1,Math.round((data.expiresAt-Date.now())/60000));
+    document.getElementById('consentLabel').textContent=data.label||'your support tech';
+    document.getElementById('consentTTL').textContent=`Session expires in ${mins} min`;
+    show('scrConsent');
+  }catch{expire('Connection error','Could not verify the session. Check your connection and try again.');}
+}
+
+async function requestCamera(){
+  try{
+    localStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:true
+    });
+    document.getElementById('localVideo').srcObject=localStream;
+    show('scrWait');
+    connectWS();
+  }catch(err){
+    if(err.name==='NotAllowedError')expire('Camera blocked','Tap browser settings, allow camera access, then refresh.');
+    else expire('Camera error',err.message);
+  }
+}
+
+function connectWS(){
+  ws=new WebSocket(WS_BASE);
+  ws.onopen=()=>sendWS({type:'join',token,role:'user'});
+  ws.onmessage=e=>handle(JSON.parse(e.data));
+}
+function sendWS(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}
+
+async function handle(msg){
+  switch(msg.type){
+    case 'joined':
+      document.getElementById('byName').textContent=msg.label||'Support tech';
+      startTTL(msg.expiresAt); break;
+    case 'offer': await handleOffer(msg); break;
+    case 'candidate': if(pc&&msg.candidate)pc.addIceCandidate(new RTCIceCandidate(msg.candidate)); break;
+    case 'annotate': handleAnno(msg); break;
+    case 'peer_ended': case 'session_expired': cleanup(); show('scrEnded'); break;
+    case 'error': expire('Error',msg.message||'Something went wrong.'); break;
+  }
+}
+
+async function handleOffer(offer){
+  pc=new RTCPeerConnection({iceServers:STUN});
+  pc.onicecandidate=({candidate})=>{if(candidate)sendWS({type:'candidate',candidate});};
+  pc.onconnectionstatechange=()=>{
+    if(pc.connectionState==='connected')show('scrCamera');
+    if(['failed','disconnected'].includes(pc.connectionState))show('scrWait');
+  };
+  if(localStream)localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+  await pc.setRemoteDescription(new RTCSessionDescription(offer));
+  const answer=await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  sendWS({type:'answer',sdp:answer.sdp,type:answer.type});
+}
+
+function endSession(){sendWS({type:'end'});cleanup();show('scrEnded');}
+function cleanup(){
+  clearInterval(ttlTimer);
+  if(localStream)localStream.getTracks().forEach(t=>t.stop());
+  if(pc){try{pc.close();}catch(_){}pc=null;}
+}
+function expire(title,sub){
+  document.getElementById('expTitle').textContent=title;
+  document.getElementById('expSub').textContent=sub;
+  show('scrExpired');
+}
+function startTTL(expiresAt){
+  clearInterval(ttlTimer);
+  ttlTimer=setInterval(()=>{
+    const rem=expiresAt-Date.now();
+    if(rem<=0){clearInterval(ttlTimer);cleanup();show('scrEnded');return;}
+    const m=Math.floor(rem/60000),s=Math.floor((rem%60000)/1000);
+    document.getElementById('camTtl').textContent=`${m}m ${String(s).padStart(2,'0')}s`;
+  },1000);
+}
+
+init();
+
+// ── ANNOTATION RECEIVER ───────────────────────────────────────────────────────
+const aCanvas = document.getElementById('annoCanvas');
+const aC = aCanvas.getContext('2d');
+let aAnnotations = [];
+let aLaser = null;
+let aFadeRaf = null;
+
+function resizeACanvas() {
+  const wrap = document.querySelector('.cam-wrap');
+  if (!wrap) return;
+  aCanvas.width  = wrap.clientWidth;
+  aCanvas.height = wrap.clientHeight;
+  aRedraw();
+}
+new ResizeObserver(resizeACanvas).observe(document.body);
+
+// X is flipped because user's video is CSS-mirrored (scaleX(-1))
+// so coords from tech (who sees unmirrored) need to be flipped on user side
+function flipX(x) { return 1 - x; }
+
+function handleAnno(msg) {
+  const color = msg._color || '#FF4F00';
+  const size  = msg._size  || 3;
+  switch (msg.tool) {
+    case 'laser':
+      if (msg.action === 'move') {
+        aLaser = { x: flipX(msg.x), y: msg.y, color };
+        aRedraw();
+      } else if (msg.action === 'end') {
+        aLaser = null;
+        aRedraw();
+      }
+      break;
+    case 'circle':
+    case 'arrow':
+      if (msg.action === 'add') {
+        aAnnotations.push({
+          type: msg.tool,
+          start: { x: flipX(msg.start.x), y: msg.start.y },
+          end:   { x: flipX(msg.end.x),   y: msg.end.y   },
+          color, size, ts: Date.now()
+        });
+        aSchedFade();
+        aRedraw();
+      }
+      break;
+    case 'pen':
+      if (msg.action === 'add') {
+        aAnnotations.push({
+          type: 'pen',
+          pts: msg.pts.map(p => ({ x: flipX(p.x), y: p.y })),
+          color, size, ts: Date.now()
+        });
+        aSchedFade();
+        aRedraw();
+      } else if (msg.action === 'preview') {
+        // draw preview strokes directly (not stored, just visual)
+        aRedraw();
+        if (msg.pts && msg.pts.length > 1) {
+          const pts = msg.pts.map(p => ({ x: flipX(p.x), y: p.y }));
+          aDrawPen(pts, color, size, 0.6);
+        }
+      }
+      break;
+    case 'clear':
+      aAnnotations = [];
+      aLaser = null;
+      aC.clearRect(0, 0, aCanvas.width, aCanvas.height);
+      break;
+  }
+}
+
+function aDrawLaser(x, y, color) {
+  const px = x * aCanvas.width, py = y * aCanvas.height;
+  aC.save();
+  // outer ring
+  aC.beginPath(); aC.arc(px, py, 22, 0, Math.PI*2);
+  aC.strokeStyle = color; aC.lineWidth = 1; aC.globalAlpha = 0.15; aC.stroke();
+  // mid ring
+  aC.beginPath(); aC.arc(px, py, 14, 0, Math.PI*2);
+  aC.strokeStyle = color; aC.lineWidth = 2; aC.globalAlpha = 0.4; aC.stroke();
+  // core dot
+  aC.beginPath(); aC.arc(px, py, 6, 0, Math.PI*2);
+  aC.fillStyle = color; aC.globalAlpha = 0.92; aC.fill();
+  aC.restore();
+}
+
+function aDrawShape(type, start, end, color, size) {
+  const sx = start.x * aCanvas.width, sy = start.y * aCanvas.height;
+  const ex = end.x   * aCanvas.width, ey = end.y   * aCanvas.height;
+  aC.save();
+  aC.strokeStyle = color; aC.fillStyle = color;
+  aC.lineWidth = size * 0.8 + 1.5; aC.lineCap = 'round';
+  if (type === 'circle') {
+    const rx = Math.abs(ex-sx)/2, ry = Math.abs(ey-sy)/2;
+    const cx = (sx+ex)/2,         cy = (sy+ey)/2;
+    aC.beginPath();
+    aC.ellipse(cx, cy, Math.max(rx,8), Math.max(ry,8), 0, 0, Math.PI*2);
+    aC.globalAlpha = 0.85; aC.stroke();
+    aC.globalAlpha = 0.08; aC.fill();
+  } else if (type === 'arrow') {
+    const dx = ex-sx, dy = ey-sy;
+    const len = Math.sqrt(dx*dx+dy*dy);
+    if (len < 5) { aC.restore(); return; }
+    const ux = dx/len, uy = dy/len;
+    const hw = Math.min(len*0.35, 20), hl = Math.min(len*0.35, 22);
+    const bx = ex - ux*hl, by = ey - uy*hl;
+    aC.globalAlpha = 0.9;
+    aC.beginPath(); aC.moveTo(sx,sy); aC.lineTo(bx,by); aC.stroke();
+    aC.beginPath();
+    aC.moveTo(ex, ey);
+    aC.lineTo(bx - uy*hw*0.5, by + ux*hw*0.5);
+    aC.lineTo(bx + uy*hw*0.5, by - ux*hw*0.5);
+    aC.closePath(); aC.fill();
+  }
+  aC.restore();
+}
+
+function aDrawPen(pts, color, size, alpha=0.85) {
+  if (pts.length < 2) return;
+  aC.save();
+  aC.strokeStyle = color; aC.lineWidth = size*0.8+1.5;
+  aC.lineCap = 'round'; aC.lineJoin = 'round'; aC.globalAlpha = alpha;
+  aC.beginPath();
+  aC.moveTo(pts[0].x * aCanvas.width, pts[0].y * aCanvas.height);
+  for (let i = 1; i < pts.length; i++) {
+    aC.lineTo(pts[i].x * aCanvas.width, pts[i].y * aCanvas.height);
+  }
+  aC.stroke(); aC.restore();
+}
+
+function aRedraw() {
+  aC.clearRect(0, 0, aCanvas.width, aCanvas.height);
+  const now = Date.now();
+  aAnnotations = aAnnotations.filter(a => now - a.ts < 8000);
+  for (const a of aAnnotations) {
+    const age = now - a.ts;
+    const alpha = age > 5000 ? Math.max(0, 1-(age-5000)/3000) : 1;
+    aC.globalAlpha = alpha;
+    if (a.type === 'circle' || a.type === 'arrow') aDrawShape(a.type, a.start, a.end, a.color, a.size);
+    else if (a.type === 'pen') aDrawPen(a.pts, a.color, a.size);
+    aC.globalAlpha = 1;
+  }
+  if (aLaser) aDrawLaser(aLaser.x, aLaser.y, aLaser.color);
+}
+
+function aSchedFade() {
+  if (aFadeRaf) return;
+  function tick() {
+    aRedraw();
+    if (aAnnotations.length > 0) aFadeRaf = requestAnimationFrame(tick);
+    else aFadeRaf = null;
+  }
+  aFadeRaf = requestAnimationFrame(tick);
+}
+</script>
+</body>
+</html>

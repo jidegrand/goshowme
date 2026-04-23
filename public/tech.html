@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GoShowMe — Tech Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0b0e;
+    --surface: #101318;
+    --surface2: #171b24;
+    --border: rgba(255,255,255,0.07);
+    --border-hi: rgba(255,255,255,0.13);
+    --text: #edeef2;
+    --muted: #60656f;
+    --dim: #353a45;
+    --accent: #FF4F00;
+    --accent-dim: rgba(255,79,0,0.11);
+    --accent-glow: rgba(255,79,0,0.22);
+    --green: #00C389;
+    --red: #ff4455;
+    --amber: #ffaa40;
+    --font: 'Plus Jakarta Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* header */
+  header { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 54px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .logo { display: flex; align-items: center; gap: 9px; text-decoration: none; }
+  .logo-mark { width: 28px; height: 28px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+  .logo-mark svg { width: 16px; height: 16px; }
+  .logo-word { font-size: 14px; font-weight: 800; letter-spacing: -0.04em; }
+  .wm-go { color: var(--accent); }
+  .wm-rest { color: var(--text); }
+  .wm-me { color: var(--text); opacity: 0.3; }
+  .header-meta { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .ws-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+  @keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+  .ws-dot.pulse { animation: blink 2s infinite; }
+
+  /* tagline bar */
+  .tagline { padding: 5px 24px; background: var(--accent-dim); border-bottom: 1px solid rgba(255,79,0,.13); font-family: var(--mono); font-size: 10.5px; color: var(--accent); letter-spacing: .04em; flex-shrink: 0; text-align: center; }
+
+  /* layout */
+  .main { flex: 1; display: grid; grid-template-columns: 295px 1fr; overflow: hidden; }
+
+  /* sidebar */
+  .sidebar { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+  .sb-section { padding: 18px 18px; border-bottom: 1px solid var(--border); }
+  .sec-lbl { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; color: var(--dim); text-transform: uppercase; margin-bottom: 13px; }
+  label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; font-family: var(--mono); }
+  .frow { margin-bottom: 10px; }
+  input[type=text], select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 8px 11px; font-family: var(--font); font-size: 13px; color: var(--text); outline: none; transition: border-color .15s; }
+  input[type=text]:focus, select:focus { border-color: var(--accent); }
+  input::placeholder { color: var(--dim); }
+  select option { background: var(--surface2); }
+  .btn-gen { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 10px; font-family: var(--font); font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity .15s, transform .1s; letter-spacing: -.01em; }
+  .btn-gen:hover { opacity: .88; }
+  .btn-gen:active { transform: scale(.98); }
+  .btn-gen:disabled { opacity: .3; cursor: not-allowed; }
+
+  /* session card */
+  .sess-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 12px; margin-top: 12px; display: none; }
+  .sess-card.on { display: block; }
+  .sess-url { font-family: var(--mono); font-size: 10.5px; color: var(--accent); word-break: break-all; line-height: 1.6; margin-bottom: 9px; }
+  .act-row { display: flex; gap: 5px; }
+  .btn-act { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-family: var(--mono); font-size: 10px; color: var(--muted); cursor: pointer; text-align: center; transition: color .15s, border-color .15s; }
+  .btn-act:hover { color: var(--accent); border-color: var(--accent); }
+  .ttl-wrap { margin-top: 9px; }
+  .ttl-meta { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+  .ttl-track { height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
+  .ttl-fill { height: 100%; background: var(--accent); border-radius: 1px; transition: width .5s linear, background .3s; }
+
+  /* sess list */
+  .sess-list { padding: 16px 18px; flex: 1; }
+  .empty { text-align: center; padding: 32px 12px; color: var(--dim); font-size: 12px; line-height: 1.7; }
+  .empty-ico { width: 34px; height: 34px; border-radius: 50%; background: var(--surface2); display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; }
+  .empty-ico svg { width: 15px; height: 15px; opacity: .35; }
+  .h-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 7px; cursor: pointer; transition: background .1s; margin-bottom: 2px; }
+  .h-item:hover { background: var(--surface2); }
+  .h-item.active { background: var(--accent-dim); border: 1px solid rgba(255,79,0,.18); }
+  .h-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .h-dot.live { background: var(--accent); box-shadow: 0 0 5px var(--accent-glow); }
+  .h-lbl { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .h-sub { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+  /* video pane */
+  .vpane { display: flex; flex-direction: column; overflow: hidden; }
+  .vtbar { display: flex; align-items: center; justify-content: space-between; padding: 0 22px; height: 46px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .vtleft { display: flex; align-items: center; gap: 9px; }
+  .badge { font-family: var(--mono); font-size: 11px; padding: 3px 10px; border-radius: 20px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
+  .live-badge { font-family: var(--mono); font-size: 10px; padding: 3px 10px; border-radius: 20px; background: rgba(255,68,85,.14); border: 1px solid rgba(255,68,85,.28); color: var(--red); display: none; align-items: center; gap: 5px; }
+  .live-badge.on { display: flex; }
+  .live-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red); animation: blink 1.2s infinite; }
+  .vtright { display: flex; gap: 5px; }
+  .ico-btn { width: 31px; height: 31px; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: color .15s, border-color .15s; }
+  .ico-btn:hover { color: var(--text); border-color: var(--border-hi); }
+  .ico-btn.danger:hover { color: var(--red); border-color: var(--red); }
+  .ico-btn svg { width: 14px; height: 14px; }
+
+  .vstage { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+  #remoteVideo { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; }
+  #remoteVideo.on { display: block; }
+
+  .wait { display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
+  .wait.off { display: none; }
+  .ring-wrap { position: relative; width: 68px; height: 68px; display: flex; align-items: center; justify-content: center; }
+  .ring { width: 68px; height: 68px; border-radius: 50%; border: 1.5px solid var(--dim); display: flex; align-items: center; justify-content: center; }
+  .ring svg { width: 24px; height: 24px; opacity: .28; }
+  .spinner { position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid transparent; border-top-color: var(--accent); opacity: 0; transition: opacity .3s; }
+  .spinner.on { opacity: 1; animation: spin 1.5s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .wait-title { font-size: 14px; font-weight: 600; }
+  .wait-sub { font-size: 12px; color: var(--muted); line-height: 1.6; max-width: 230px; }
+
+  .conn-ov { position: absolute; inset: 0; background: rgba(10,11,14,.88); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 10; }
+  .conn-ov.on { display: flex; }
+  .conn-msg { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+  .statsbar { display: flex; align-items: center; gap: 16px; padding: 7px 22px; border-top: 1px solid var(--border); flex-shrink: 0; font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .stat { display: flex; align-items: center; gap: 5px; }
+  .stat-v { color: var(--text); font-weight: 500; }
+  .dot-sep { color: var(--dim); }
+
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%) translateY(6px); background: var(--surface2); border: 1px solid var(--border-hi); border-radius: 8px; padding: 8px 15px; font-size: 12px; font-family: var(--mono); opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; white-space: nowrap; z-index: 200; }
+  .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── AI Vision sidebar ── */
+  .vpane { position: relative; }
+  .ai-sidebar {
+    position: absolute; top: 0; right: 0; bottom: 0;
+    width: 300px; z-index: 20;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    transform: translateX(100%);
+    transition: transform .25s cubic-bezier(.4,0,.2,1);
+    overflow: hidden;
+  }
+  .ai-sidebar.open { transform: translateX(0); }
+  .ai-sidebar-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .ai-sidebar-title {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 700; letter-spacing: -.01em;
+  }
+  .ai-badge {
+    font-family: var(--mono); font-size: 9px; padding: 2px 7px;
+    border-radius: 4px; background: var(--orange-dim);
+    border: 1px solid rgba(255,79,0,.25); color: var(--accent); letter-spacing: .04em;
+  }
+  .ai-close {
+    width: 24px; height: 24px; border-radius: 5px; background: none;
+    border: none; cursor: pointer; color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    transition: color .15s;
+  }
+  .ai-close:hover { color: var(--text); }
+  .ai-close svg { width: 13px; height: 13px; }
+
+  .ai-actions {
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
+  }
+  .ai-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 12px;
+    font-family: var(--font); font-size: 12px; font-weight: 600;
+    color: var(--text); cursor: pointer;
+    transition: border-color .15s, background .15s;
+    text-align: left;
+  }
+  .ai-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+  .ai-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .ai-btn svg { width: 14px; height: 14px; color: var(--accent); flex-shrink: 0; }
+  .ai-btn-sub { font-size: 10px; color: var(--muted); font-weight: 400; margin-top: 1px; font-family: var(--mono); }
+
+  .ai-results { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .ai-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; gap: 10px; color: var(--dim); text-align: center;
+    font-size: 12px; line-height: 1.6; padding: 20px;
+  }
+  .ai-empty svg { width: 28px; height: 28px; opacity: .25; }
+
+  .ai-thinking {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px;
+    display: none; align-items: center; gap: 10px;
+  }
+  .ai-thinking.on { display: flex; }
+  .ai-think-dots { display: flex; gap: 4px; }
+  .ai-think-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+    animation: thinkanim 1.2s ease infinite;
+  }
+  .ai-think-dot:nth-child(2) { animation-delay: .18s; }
+  .ai-think-dot:nth-child(3) { animation-delay: .36s; }
+  @keyframes thinkanim { 0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1)} }
+  .ai-think-lbl { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+  .ai-result-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+    animation: fadeInUp .2s ease;
+  }
+  @keyframes fadeInUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+  .ai-result-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+  }
+  .ai-result-mode {
+    display: flex; align-items: center; gap: 5px;
+    font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: .05em;
+  }
+  .ai-result-mode-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+  .ai-result-time { font-family: var(--mono); font-size: 9px; color: var(--dim); }
+  .ai-result-thumb {
+    width: 100%; height: 80px; object-fit: cover;
+    border-bottom: 1px solid var(--border); display: block;
+    filter: brightness(.85);
+  }
+  .ai-result-body { padding: 10px 12px; }
+  .ai-result-text {
+    font-size: 12px; color: var(--text); line-height: 1.65;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .ai-result-text .ai-highlight {
+    background: rgba(255,79,0,.15); color: var(--accent);
+    border-radius: 3px; padding: 0 3px; font-weight: 600;
+  }
+  .ai-copy-row { display: flex; justify-content: flex-end; margin-top: 8px; }
+  .ai-copy-btn {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    background: none; border: none; cursor: pointer; padding: 2px 0;
+    transition: color .15s;
+  }
+  .ai-copy-btn:hover { color: var(--accent); }
+
+  /* AI toolbar button — special orange glow */
+  .ico-btn.ai-trigger { border-color: rgba(255,79,0,.3); color: var(--accent); }
+  .ico-btn.ai-trigger:hover { background: var(--accent-dim); border-color: var(--accent); }
+  .ico-btn.ai-trigger.busy { animation: aipulse 1s ease infinite; }
+  @keyframes aipulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,79,0,.4)}50%{box-shadow:0 0 0 4px rgba(255,79,0,.0)} }
+
+  /* ── Annotation ── */
+  #annoCanvas { position: absolute; inset: 0; z-index: 6; pointer-events: none; width: 100%; height: 100%; }
+  #annoCanvas.drawing { pointer-events: auto; }
+  #annoCanvas.tool-laser { cursor: none; }
+  #annoCanvas.tool-circle { cursor: crosshair; }
+  #annoCanvas.tool-pen    { cursor: crosshair; }
+
+  .anno-toolbar {
+    display: none;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    background: var(--surface2);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .anno-toolbar.visible { display: flex; }
+  .anno-lbl { font-family: var(--mono); font-size: 10px; color: var(--dim); letter-spacing: .06em; text-transform: uppercase; margin-right: 4px; }
+  .anno-btn {
+    width: 32px; height: 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+    transition: color .15s, border-color .15s, background .15s;
+    flex-shrink: 0;
+  }
+  .anno-btn svg { width: 14px; height: 14px; }
+  .anno-btn:hover { color: var(--text); border-color: var(--border-hi); }
+  .anno-btn.active { background: var(--accent-dim); border-color: rgba(255,79,0,.35); color: var(--accent); }
+  .anno-btn.clear-btn:hover { color: var(--red); border-color: var(--red); }
+  .anno-sep { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
+  .anno-color-row { display: flex; gap: 4px; margin-left: 4px; }
+  .color-swatch {
+    width: 18px; height: 18px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; transition: border-color .15s, transform .1s;
+  }
+  .color-swatch:hover { transform: scale(1.15); }
+  .color-swatch.active { border-color: var(--text); }
+  .anno-size-row { display: flex; align-items: center; gap: 6px; margin-left: 6px; }
+  .size-btn {
+    cursor: pointer; border-radius: 50%; background: var(--muted);
+    transition: background .15s, transform .1s; flex-shrink: 0;
+  }
+  .size-btn:hover { background: var(--text); transform: scale(1.1); }
+  .size-btn.active { background: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="/">
+    <div class="logo-mark">
+      <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="10" height="8" rx="2" fill="white"/><path d="M11 6.5L15 4.5V11.5L11 9.5V6.5Z" fill="white"/></svg>
+    </div>
+    <span class="logo-word"><span class="wm-go">Go</span><span class="wm-rest">Show</span><span class="wm-me">Me</span></span>
+  </a>
+  <div class="header-meta">
+    <div class="ws-dot pulse" id="wsDot"></div>
+    <span id="wsStatus">connecting…</span>
+  </div>
+</header>
+
+<div class="tagline">No install. No account. Just show me.</div>
+
+<div class="main">
+  <aside class="sidebar">
+    <div class="sb-section">
+      <div class="sec-lbl">New session</div>
+      <div class="frow">
+        <label>Session label</label>
+        <input type="text" id="sessionLabel" placeholder="e.g. Sarah's Dell laptop" maxlength="50">
+      </div>
+      <div class="frow">
+        <label>Expires after</label>
+        <select id="ttlSelect">
+          <option value="15">15 minutes</option>
+          <option value="30" selected>30 minutes</option>
+          <option value="60">1 hour</option>
+          <option value="120">2 hours</option>
+        </select>
+      </div>
+      <button class="btn-gen" id="createBtn" onclick="createSession()">Generate link</button>
+
+      <div class="sess-card" id="sessCard">
+        <div class="sess-url" id="sessUrl"></div>
+        <div class="act-row">
+          <button class="btn-act" onclick="copyLink()">Copy</button>
+          <button class="btn-act" onclick="shareSMS()">SMS</button>
+          <button class="btn-act" onclick="shareEmail()">Email</button>
+        </div>
+        <div class="ttl-wrap">
+          <div class="ttl-meta"><span>Expires</span><span id="ttlLbl">—</span></div>
+          <div class="ttl-track"><div class="ttl-fill" id="ttlFill" style="width:100%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sess-list">
+      <div class="sec-lbl">Active sessions</div>
+      <div class="empty" id="emptyState">
+        <div class="empty-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="14" height="10" rx="2"/><path d="M17 9l4-2v6l-4-2"/></svg></div>
+        No active sessions.<br>Generate a link above.
+      </div>
+      <div id="sessList"></div>
+    </div>
+  </aside>
+
+  <section class="vpane">
+    <div class="vtbar">
+      <div class="vtleft">
+        <span class="badge" id="activeBadge">No session selected</span>
+        <div class="live-badge" id="liveBadge"><div class="live-dot"></div>LIVE</div>
+      </div>
+      <div class="vtright">
+        <button class="ico-btn ai-trigger" id="aiBtn" title="Vision AI — analyze frame" onclick="toggleAI()" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><path d="M12 5v1M12 18v1M5 12H4M20 12h-1"/></svg>
+        </button>
+        <button class="ico-btn" title="Fullscreen" onclick="toggleFS()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        </button>
+        <button class="ico-btn" title="Screenshot" onclick="snapshot()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="4"/></svg>
+        </button>
+        <button class="ico-btn danger" id="endBtn" title="End session" onclick="endSession()" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="vstage">
+      <video id="remoteVideo" autoplay playsinline></video>
+      <canvas id="annoCanvas"></canvas>
+
+      <!-- AI Vision sidebar -->
+      <div class="ai-sidebar" id="aiSidebar">
+        <div class="ai-sidebar-head">
+          <div class="ai-sidebar-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            Vision AI
+            <span class="ai-badge">BETA</span>
+          </div>
+          <button class="ai-close" onclick="toggleAI()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div class="ai-actions">
+          <button class="ai-btn" id="btnAnalyze" onclick="runAI('analyze')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <div>
+              Analyze frame
+              <div class="ai-btn-sub">What does the AI see right now?</div>
+            </div>
+          </button>
+          <button class="ai-btn" id="btnReadScreen" onclick="runAI('readscreen')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8h10M7 12h6"/></svg>
+            <div>
+              Read screen text
+              <div class="ai-btn-sub">Extract error codes, messages, UI text</div>
+            </div>
+          </button>
+          <button class="ai-btn" id="btnHardware" onclick="runAI('hardware')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12.01" y2="12"/></svg>
+            <div>
+              Diagnose hardware
+              <div class="ai-btn-sub">Ports, LEDs, cables, physical state</div>
+            </div>
+          </button>
+          <button class="ai-btn" id="btnSuggest" onclick="runAI('suggest')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            <div>
+              Suggest next step
+              <div class="ai-btn-sub">What should the tech do next?</div>
+            </div>
+          </button>
+        </div>
+
+        <div class="ai-results" id="aiResults">
+          <div class="ai-thinking" id="aiThinking">
+            <div class="ai-think-dots">
+              <div class="ai-think-dot"></div>
+              <div class="ai-think-dot"></div>
+              <div class="ai-think-dot"></div>
+            </div>
+            <div class="ai-think-lbl" id="aiThinkLbl">Analyzing frame…</div>
+          </div>
+          <div class="ai-empty" id="aiEmpty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span>Choose an analysis mode above.<br>AI reads the live camera frame.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="wait" id="waitScreen">
+        <div class="ring-wrap">
+          <div class="ring"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="14" height="10" rx="2"/><path d="M17 9l4-2v6l-4-2"/></svg></div>
+          <div class="spinner" id="spinner"></div>
+        </div>
+        <div>
+          <div class="wait-title" id="waitTitle">Select or create a session</div>
+          <div class="wait-sub" id="waitSub">Generate a link and send it to your user. Their camera will appear here.</div>
+        </div>
+      </div>
+
+      <div class="conn-ov" id="connOv">
+        <div class="ring-wrap" style="width:50px;height:50px;">
+          <div class="ring" style="width:50px;height:50px;"></div>
+          <div class="spinner on" style="width:50px;height:50px;inset:0;"></div>
+        </div>
+        <div class="conn-msg" id="connMsg">Connecting…</div>
+      </div>
+    </div>
+
+    <div class="statsbar">
+      <div class="stat"><span>State</span><span class="stat-v" id="statState">—</span></div>
+      <span class="dot-sep">·</span>
+      <div class="stat"><span>Duration</span><span class="stat-v" id="statDur">—</span></div>
+      <span class="dot-sep">·</span>
+      <div class="stat"><span>Token</span><span class="stat-v" id="statTok">—</span></div>
+      <span style="flex:1"></span>
+      <span style="color:var(--dim);font-size:10px;">goshowmeapp.com</span>
+    </div>
+
+    <!-- Annotation toolbar — shown only when live -->
+    <div class="anno-toolbar" id="annoToolbar">
+      <span class="anno-lbl">Annotate</span>
+
+      <button class="anno-btn active" id="btn-laser" title="Laser pointer" onclick="setTool('laser')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/></svg>
+      </button>
+      <button class="anno-btn" id="btn-circle" title="Circle highlight" onclick="setTool('circle')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/></svg>
+      </button>
+      <button class="anno-btn" id="btn-pen" title="Freehand draw" onclick="setTool('pen')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      </button>
+      <button class="anno-btn" id="btn-arrow" title="Arrow pointer" onclick="setTool('arrow')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="8 5 19 5 19 16"/></svg>
+      </button>
+
+      <div class="anno-sep"></div>
+
+      <div class="anno-color-row" id="colorSwatches">
+        <div class="color-swatch active" data-color="#FF4F00" style="background:#FF4F00;" onclick="setColor('#FF4F00',this)" title="Orange"></div>
+        <div class="color-swatch" data-color="#ffffff" style="background:#ffffff;" onclick="setColor('#ffffff',this)" title="White"></div>
+        <div class="color-swatch" data-color="#00C389" style="background:#00C389;" onclick="setColor('#00C389',this)" title="Green"></div>
+        <div class="color-swatch" data-color="#ffee00" style="background:#ffee00;" onclick="setColor('#ffee00',this)" title="Yellow"></div>
+        <div class="color-swatch" data-color="#ff4455" style="background:#ff4455;" onclick="setColor('#ff4455',this)" title="Red"></div>
+      </div>
+
+      <div class="anno-sep"></div>
+
+      <div class="anno-size-row">
+        <div class="size-btn active" data-size="3"  style="width:8px;height:8px;"  onclick="setSize(3,this)"  title="Small"></div>
+        <div class="size-btn"        data-size="6"  style="width:12px;height:12px;" onclick="setSize(6,this)" title="Medium"></div>
+        <div class="size-btn"        data-size="10" style="width:16px;height:16px;" onclick="setSize(10,this)" title="Large"></div>
+      </div>
+
+      <div class="anno-sep"></div>
+
+      <button class="anno-btn clear-btn" title="Clear all annotations" onclick="clearAnnotations()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const WS_BASE = location.protocol==='https:'?'wss://'+location.host:'ws://'+location.host;
+const STUN = [{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
+
+let ws=null,pc=null,activeToken=null,activeSession=null,sessStart=null,durInt=null,ttlInt=null,liveSessions=[];
+
+function connectWS(){
+  ws=new WebSocket(WS_BASE);
+  ws.onopen=()=>{
+    document.getElementById('wsStatus').textContent='connected';
+    document.getElementById('wsDot').style.background='var(--green)';
+    if(activeToken) joinAsTech(activeToken);
+  };
+  ws.onclose=()=>{
+    document.getElementById('wsStatus').textContent='reconnecting…';
+    document.getElementById('wsDot').style.background='var(--amber)';
+    setTimeout(connectWS,2000);
+  };
+  ws.onmessage=e=>handleSignal(JSON.parse(e.data));
+}
+function sendWS(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}
+
+function handleSignal(msg){
+  switch(msg.type){
+    case 'joined': setConn('idle'); break;
+    case 'user_connected': toast('User connected — starting stream…'); setConn('connecting'); startRTC(); break;
+    case 'user_disconnected': toast('User disconnected'); setConn('idle'); tearPeer(); liveBadge(false); break;
+    case 'answer': if(pc)pc.setRemoteDescription(new RTCSessionDescription(msg)); break;
+    case 'candidate': if(pc&&msg.candidate)pc.addIceCandidate(new RTCIceCandidate(msg.candidate)); break;
+    case 'peer_ended': case 'session_expired': toast(msg.type==='session_expired'?'Session expired':'Session ended by user'); tearSession(); break;
+  }
+}
+function joinAsTech(token){sendWS({type:'join',token,role:'tech'});activeToken=token;}
+
+async function startRTC(){
+  tearPeer();
+  pc=new RTCPeerConnection({iceServers:STUN});
+  pc.onicecandidate=({candidate})=>{if(candidate)sendWS({type:'candidate',candidate});};
+  pc.ontrack=e=>{
+    const v=document.getElementById('remoteVideo');
+    v.srcObject=e.streams[0]; v.classList.add('on');
+    document.getElementById('waitScreen').classList.add('off');
+    document.getElementById('connOv').classList.remove('on');
+    liveBadge(true); sessStart=Date.now(); startDur();
+    document.getElementById('statState').textContent='live';
+    showAnnoToolbar(true);
+    document.getElementById('aiBtn').style.display='flex';
+    resizeAnnoCanvas();
+  };
+  pc.onconnectionstatechange=()=>{
+    const s=pc.connectionState;
+    document.getElementById('statState').textContent=s;
+    if(s==='failed'||s==='disconnected'){liveBadge(false);setConn('idle');}
+  };
+  const offer=await pc.createOffer({offerToReceiveVideo:true,offerToReceiveAudio:true});
+  await pc.setLocalDescription(offer);
+  sendWS({type:'offer',sdp:offer.sdp,type:offer.type});
+}
+function tearPeer(){
+  if(pc){try{pc.close();}catch(_){}pc=null;}
+  clearInterval(durInt);durInt=null;sessStart=null;
+  document.getElementById('statDur').textContent='—';
+  document.getElementById('statState').textContent=activeToken?'waiting':'—';
+  const v=document.getElementById('remoteVideo');v.srcObject=null;v.classList.remove('on');
+  document.getElementById('waitScreen').classList.remove('off');
+  showAnnoToolbar(false);
+  document.getElementById('aiBtn').style.display='none';
+  document.getElementById('aiSidebar').classList.remove('open');
+}
+
+async function createSession(){
+  const label=document.getElementById('sessionLabel').value.trim()||'Support session';
+  const ttl=parseInt(document.getElementById('ttlSelect').value);
+  const btn=document.getElementById('createBtn');
+  btn.disabled=true;btn.textContent='Creating…';
+  try{
+    const res=await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label,ttl})});
+    const data=await res.json();
+    const sess={token:data.token,label,url:data.url,expiresAt:data.expiresAt,ttlMins:ttl};
+    liveSessions.unshift(sess);
+    selectSess(sess); renderList(); showCard(sess);
+  }catch{toast('Failed to create session');}
+  finally{btn.disabled=false;btn.textContent='Generate link';}
+}
+
+function selectSess(sess){
+  activeSession=sess;activeToken=sess.token;
+  document.getElementById('activeBadge').textContent=sess.label;
+  document.getElementById('statTok').textContent=sess.token.slice(0,8)+'…';
+  document.getElementById('statState').textContent='waiting';
+  document.getElementById('endBtn').style.display='flex';
+  document.getElementById('waitTitle').textContent='Waiting for user…';
+  document.getElementById('waitSub').textContent='Link sent. Camera feed will appear when they connect.';
+  document.getElementById('spinner').classList.add('on');
+  tearPeer();
+  if(ws&&ws.readyState===1)joinAsTech(sess.token);else activeToken=sess.token;
+}
+function endSession(){if(!activeToken)return;sendWS({type:'end'});toast('Session ended');tearSession();}
+function tearSession(){
+  tearPeer();
+  const t=activeToken;activeToken=null;activeSession=null;
+  liveSessions=liveSessions.filter(s=>s.token!==t);
+  document.getElementById('sessCard').classList.remove('on');
+  document.getElementById('activeBadge').textContent='No session selected';
+  document.getElementById('statTok').textContent='—';document.getElementById('statState').textContent='—';
+  document.getElementById('endBtn').style.display='none';
+  document.getElementById('spinner').classList.remove('on');
+  document.getElementById('waitTitle').textContent='Select or create a session';
+  document.getElementById('waitSub').textContent='Generate a link and send it to your user. Their camera will appear here.';
+  liveBadge(false);renderList();
+}
+
+function showCard(sess){
+  document.getElementById('sessCard').classList.add('on');
+  document.getElementById('sessUrl').textContent=sess.url;
+  clearInterval(ttlInt);
+  ttlInt=setInterval(()=>{
+    const rem=sess.expiresAt-Date.now();
+    if(rem<=0){clearInterval(ttlInt);return;}
+    const pct=Math.max(0,(rem/(sess.ttlMins*60000))*100);
+    document.getElementById('ttlFill').style.width=pct+'%';
+    document.getElementById('ttlFill').style.background=pct<20?'var(--red)':pct<40?'var(--amber)':'var(--accent)';
+    const m=Math.floor(rem/60000),s=Math.floor((rem%60000)/1000);
+    document.getElementById('ttlLbl').textContent=`${m}m ${s}s`;
+  },1000);
+}
+function renderList(){
+  const list=document.getElementById('sessList'),empty=document.getElementById('emptyState');
+  if(!liveSessions.length){empty.style.display='';list.innerHTML='';return;}
+  empty.style.display='none';
+  list.innerHTML=liveSessions.map(s=>`
+    <div class="h-item ${activeToken===s.token?'active':''}" onclick='pick(${JSON.stringify(s.token)})'>
+      <div class="h-dot live"></div>
+      <div style="flex:1;min-width:0">
+        <div class="h-lbl">${s.label}</div>
+        <div class="h-sub">${s.token.slice(0,8)}… · ${expiry(s.expiresAt)}</div>
+      </div>
+    </div>`).join('');
+}
+function pick(token){const s=liveSessions.find(x=>x.token===token);if(s){selectSess(s);showCard(s);}}
+
+function copyLink(){if(!activeSession)return;navigator.clipboard.writeText(activeSession.url).then(()=>toast('Link copied!'));}
+function shareSMS(){
+  if(!activeSession)return;
+  const ttlLabel=document.getElementById('ttlSelect').options[document.getElementById('ttlSelect').selectedIndex].text;
+  window.open(`sms:?body=${encodeURIComponent(`Hi! Your GoShowMe support link:\n${activeSession.url}\n\nTap on your phone, allow camera access. Expires in ${ttlLabel}. No app needed.`)}`);
+}
+function shareEmail(){
+  if(!activeSession)return;
+  const ttlLabel=document.getElementById('ttlSelect').options[document.getElementById('ttlSelect').selectedIndex].text;
+  window.open(`mailto:?subject=${encodeURIComponent('Your support session — GoShowMe')}&body=${encodeURIComponent(`Hello,\n\nTap the link below on your mobile phone:\n\n${activeSession.url}\n\nExpires in ${ttlLabel}. No app or account required.\n\n— Your support team\nPowered by GoShowMe · goshowmeapp.com`)}`);
+}
+function snapshot(){
+  const v=document.getElementById('remoteVideo');if(!v.srcObject)return toast('No live feed');
+  const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;
+  c.getContext('2d').drawImage(v,0,0);
+  c.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`goshowme-${Date.now()}.png`;a.click();toast('Snapshot saved');});
+}
+function toggleFS(){const s=document.querySelector('.vstage');!document.fullscreenElement?s.requestFullscreen():document.exitFullscreen();}
+function startDur(){
+  clearInterval(durInt);
+  durInt=setInterval(()=>{
+    if(!sessStart)return;
+    const s=Math.floor((Date.now()-sessStart)/1000),m=Math.floor(s/60),sc=s%60;
+    document.getElementById('statDur').textContent=`${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`;
+  },1000);
+}
+function liveBadge(on){document.getElementById('liveBadge').classList.toggle('on',on);}
+function setConn(state){
+  const ov=document.getElementById('connOv'),msg=document.getElementById('connMsg');
+  if(state==='connecting'){ov.classList.add('on');msg.textContent='Establishing connection…';}
+  else if(state==='user_connected'){ov.classList.add('on');msg.textContent='User connected, starting video…';}
+  else ov.classList.remove('on');
+}
+function toast(text){
+  const t=document.getElementById('toast');t.textContent=text;t.classList.add('on');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2500);
+}
+function expiry(ts){const m=Math.max(0,Math.round((ts-Date.now())/60000));return m>0?`${m}m left`:'expired';}
+
+// ── ANNOTATIONS ──────────────────────────────────────────────────────────────
+const annoCanvas = document.getElementById('annoCanvas');
+const ctx = annoCanvas.getContext('2d');
+let annoTool = 'laser';
+let annoColor = '#FF4F00';
+let annoSize = 3;
+let drawing = false;
+let drawStart = null;
+let penPoints = [];
+let annotations = []; // {type, data, ts, color, size}
+let laserPos = null;
+let laserFade = null;
+let throttleT = 0;
+
+function resizeAnnoCanvas() {
+  const stage = document.querySelector('.vstage');
+  annoCanvas.width = stage.clientWidth;
+  annoCanvas.height = stage.clientHeight;
+  redrawAll();
+}
+new ResizeObserver(resizeAnnoCanvas).observe(document.querySelector('.vstage'));
+
+function setTool(t) {
+  annoTool = t;
+  document.querySelectorAll('.anno-btn[id^="btn-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + t)?.classList.add('active');
+  annoCanvas.className = 'drawing tool-' + t;
+}
+function setColor(c, el) {
+  annoColor = c;
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+}
+function setSize(s, el) {
+  annoSize = s;
+  document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function getNorm(e) {
+  const r = annoCanvas.getBoundingClientRect();
+  const x = ((e.touches ? e.touches[0].clientX : e.clientX) - r.left) / r.width;
+  const y = ((e.touches ? e.touches[0].clientY : e.clientY) - r.top)  / r.height;
+  return { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
+}
+
+annoCanvas.addEventListener('mousedown', e => {
+  drawing = true;
+  const p = getNorm(e);
+  if (annoTool === 'laser') {
+    laserPos = p;
+    sendAnno({ tool: 'laser', action: 'move', x: p.x, y: p.y });
+    redrawAll();
+  } else if (annoTool === 'circle' || annoTool === 'arrow') {
+    drawStart = p;
+  } else if (annoTool === 'pen') {
+    penPoints = [p];
+  }
+  e.preventDefault();
+});
+
+annoCanvas.addEventListener('mousemove', e => {
+  if (!drawing) return;
+  const now = Date.now();
+  const p = getNorm(e);
+  if (annoTool === 'laser') {
+    laserPos = p;
+    if (now - throttleT > 30) {
+      throttleT = now;
+      sendAnno({ tool: 'laser', action: 'move', x: p.x, y: p.y });
+    }
+    redrawAll();
+  } else if (annoTool === 'pen') {
+    penPoints.push(p);
+    redrawAll();
+    drawPenPreview(penPoints);
+    if (now - throttleT > 40) {
+      throttleT = now;
+      sendAnno({ tool: 'pen', action: 'preview', pts: penPoints.slice(-4) });
+    }
+  } else if ((annoTool === 'circle' || annoTool === 'arrow') && drawStart) {
+    redrawAll();
+    drawShape(annoTool, drawStart, p, annoColor, annoSize, ctx);
+  }
+  e.preventDefault();
+});
+
+annoCanvas.addEventListener('mouseup', e => {
+  if (!drawing) return;
+  drawing = false;
+  const p = getNorm(e);
+  if (annoTool === 'laser') {
+    laserPos = null;
+    sendAnno({ tool: 'laser', action: 'end' });
+    redrawAll();
+  } else if (annoTool === 'circle' || annoTool === 'arrow') {
+    const anno = { type: annoTool, start: drawStart, end: p, color: annoColor, size: annoSize, ts: Date.now() };
+    annotations.push(anno);
+    sendAnno({ tool: annoTool, action: 'add', start: drawStart, end: p, color: annoColor, size: annoSize });
+    schedFade();
+    drawStart = null;
+    redrawAll();
+  } else if (annoTool === 'pen' && penPoints.length > 1) {
+    const anno = { type: 'pen', pts: [...penPoints], color: annoColor, size: annoSize, ts: Date.now() };
+    annotations.push(anno);
+    sendAnno({ tool: 'pen', action: 'add', pts: penPoints, color: annoColor, size: annoSize });
+    schedFade();
+    penPoints = [];
+    redrawAll();
+  }
+  e.preventDefault();
+});
+
+annoCanvas.addEventListener('mouseleave', () => {
+  if (drawing && annoTool === 'laser') {
+    drawing = false; laserPos = null;
+    sendAnno({ tool: 'laser', action: 'end' });
+    redrawAll();
+  }
+});
+
+function drawLaser(x, y, c) {
+  const px = x * annoCanvas.width, py = y * annoCanvas.height;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2);
+  ctx.fillStyle = c; ctx.globalAlpha = 0.9; ctx.fill();
+  ctx.beginPath(); ctx.arc(px, py, 14, 0, Math.PI * 2);
+  ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.globalAlpha = 0.4; ctx.stroke();
+  ctx.beginPath(); ctx.arc(px, py, 22, 0, Math.PI * 2);
+  ctx.strokeStyle = c; ctx.lineWidth = 1; ctx.globalAlpha = 0.15; ctx.stroke();
+  ctx.restore();
+}
+
+function drawShape(type, start, end, color, size, c) {
+  const sx = start.x * annoCanvas.width, sy = start.y * annoCanvas.height;
+  const ex = end.x * annoCanvas.width,   ey = end.y * annoCanvas.height;
+  c.save(); c.strokeStyle = color; c.fillStyle = color; c.lineWidth = size * 0.8 + 1.5; c.lineCap = 'round';
+  if (type === 'circle') {
+    const rx = Math.abs(ex - sx) / 2, ry = Math.abs(ey - sy) / 2;
+    const cx = (sx + ex) / 2, cy = (sy + ey) / 2;
+    c.beginPath(); c.ellipse(cx, cy, Math.max(rx, 8), Math.max(ry, 8), 0, 0, Math.PI * 2);
+    c.globalAlpha = 0.85; c.stroke();
+    c.globalAlpha = 0.08; c.fill();
+  } else if (type === 'arrow') {
+    const dx = ex - sx, dy = ey - sy;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 5) { c.restore(); return; }
+    const ux = dx / len, uy = dy / len;
+    const hw = Math.min(len * 0.35, 20), hl = Math.min(len * 0.35, 22);
+    const bx = ex - ux * hl, by = ey - uy * hl;
+    c.globalAlpha = 0.9;
+    c.beginPath(); c.moveTo(sx, sy); c.lineTo(bx, by); c.stroke();
+    c.beginPath();
+    c.moveTo(ex, ey);
+    c.lineTo(bx - uy * hw * 0.5, by + ux * hw * 0.5);
+    c.lineTo(bx + uy * hw * 0.5, by - ux * hw * 0.5);
+    c.closePath(); c.fill();
+  }
+  c.restore();
+}
+
+function drawPenPreview(pts) {
+  if (pts.length < 2) return;
+  ctx.save(); ctx.strokeStyle = annoColor; ctx.lineWidth = annoSize * 0.8 + 1.5;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.globalAlpha = 0.85;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x * annoCanvas.width, pts[0].y * annoCanvas.height);
+  for (let i = 1; i < pts.length; i++) {
+    ctx.lineTo(pts[i].x * annoCanvas.width, pts[i].y * annoCanvas.height);
+  }
+  ctx.stroke(); ctx.restore();
+}
+
+function redrawAll() {
+  ctx.clearRect(0, 0, annoCanvas.width, annoCanvas.height);
+  const now = Date.now();
+  annotations = annotations.filter(a => now - a.ts < 8000);
+  for (const a of annotations) {
+    const age = now - a.ts;
+    const alpha = age > 5000 ? Math.max(0, 1 - (age - 5000) / 3000) : 1;
+    ctx.globalAlpha = alpha;
+    if (a.type === 'circle' || a.type === 'arrow') {
+      drawShape(a.type, a.start, a.end, a.color, a.size, ctx);
+    } else if (a.type === 'pen') {
+      drawPenPreview(a.pts);
+    }
+    ctx.globalAlpha = 1;
+  }
+  if (laserPos) drawLaser(laserPos.x, laserPos.y, annoColor);
+  if (drawing && annoTool === 'pen') drawPenPreview(penPoints);
+}
+
+let fadeRaf = null;
+function schedFade() {
+  if (fadeRaf) return;
+  function tick() {
+    redrawAll();
+    if (annotations.length > 0) fadeRaf = requestAnimationFrame(tick);
+    else fadeRaf = null;
+  }
+  fadeRaf = requestAnimationFrame(tick);
+}
+
+function clearAnnotations() {
+  annotations = []; laserPos = null; penPoints = [];
+  ctx.clearRect(0, 0, annoCanvas.width, annoCanvas.height);
+  sendAnno({ tool: 'clear' });
+}
+
+function sendAnno(data) {
+  sendWS({ type: 'annotate', ...data, _color: annoColor, _size: annoSize });
+}
+
+function showAnnoToolbar(on) {
+  document.getElementById('annoToolbar').classList.toggle('visible', on);
+  if (on) { annoCanvas.classList.add('drawing'); setTool('laser'); }
+  else { annoCanvas.className = ''; clearAnnotations(); }
+}
+
+// ── VISION AI ────────────────────────────────────────────────────────────────
+const AI_PROMPTS = {
+  analyze: `You are a tech support AI assistant watching a live camera feed during a remote support session.
+Describe what you see in 2-3 sentences. Focus on: what device or screen is visible, its current state, and any obvious issues.
+Be concise and actionable. Start directly with what you observe.`,
+
+  readscreen: `You are a tech support AI assistant. Extract ALL visible text from this image.
+Pay special attention to: error codes, error messages, warning dialogs, status messages, loading screens, BSOD codes, boot messages.
+Format extracted text clearly. If you see an error code, put it on its own line prefixed with "ERROR:".
+If the screen appears blank or off, say so clearly.`,
+
+  hardware: `You are a tech support AI assistant inspecting physical hardware via a camera feed.
+Describe the physical state of any hardware you can see. Look for:
+- LED indicator colors and patterns (green=good, amber=warning, red=error, blinking patterns)
+- Cable connections — are they fully seated? Any visibly loose cables?
+- Physical damage, dust buildup, bent pins, or abnormalities
+- Drive bays — are any empty or showing eject indicators?
+- Port occupancy — what's plugged in where?
+Be specific about locations (e.g. "top-left drive bay", "rear USB port").`,
+
+  suggest: `You are a senior tech support engineer watching a live camera feed of a user's device.
+Based on what you see, suggest the single most useful next step the tech should take or instruct the user to do.
+Be direct and specific — give an actual instruction, not a vague recommendation.
+Format: one clear action sentence, then a brief reason why in parentheses.`,
+};
+
+const AI_LABELS = {
+  analyze:    'Analyzing frame…',
+  readscreen: 'Reading screen text…',
+  hardware:   'Inspecting hardware…',
+  suggest:    'Thinking of next step…',
+};
+
+const AI_MODES = {
+  analyze:    'ANALYZE',
+  readscreen: 'READ SCREEN',
+  hardware:   'HARDWARE',
+  suggest:    'SUGGEST',
+};
+
+let aiOpen = false;
+let aiRunning = false;
+
+function toggleAI() {
+  aiOpen = !aiOpen;
+  document.getElementById('aiSidebar').classList.toggle('open', aiOpen);
+  document.getElementById('aiBtn').classList.toggle('ai-trigger', true);
+}
+
+async function runAI(mode) {
+  const video = document.getElementById('remoteVideo');
+  if (!video.srcObject || aiRunning) return;
+
+  aiRunning = true;
+  setAIBtns(true);
+
+  // Capture current frame
+  const canvas = document.createElement('canvas');
+  canvas.width  = video.videoWidth  || 640;
+  canvas.height = video.videoHeight || 480;
+  const ctx2 = canvas.getContext('2d');
+  ctx2.drawImage(video, 0, 0);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+  const base64  = dataUrl.split(',')[1];
+
+  // Show thinking state
+  const thinking = document.getElementById('aiThinking');
+  const empty    = document.getElementById('aiEmpty');
+  document.getElementById('aiThinkLbl').textContent = AI_LABELS[mode];
+  thinking.classList.add('on');
+  empty.style.display = 'none';
+
+  const thumbUrl = dataUrl;
+  const ts = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+
+  try {
+    const response = await fetch('/api/ai/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
+            { type: 'text',  text: AI_PROMPTS[mode] }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content?.find(b => b.type === 'text')?.text || 'No response received.';
+    thinking.classList.remove('on');
+    insertAIResult(mode, text, thumbUrl, ts);
+  } catch (err) {
+    thinking.classList.remove('on');
+    insertAIResult(mode, `Error: ${err.message}. Check your API connection.`, null, ts);
+  }
+
+  aiRunning = false;
+  setAIBtns(false);
+}
+
+function insertAIResult(mode, text, thumbUrl, ts) {
+  const results = document.getElementById('aiResults');
+
+  // Highlight error codes in red text
+  const highlighted = text.replace(/(ERROR:|0x[0-9A-Fa-f]+|BSOD|STOP:?\s*0x\w+)/g,
+    '<span class="ai-highlight">$1</span>');
+
+  const card = document.createElement('div');
+  card.className = 'ai-result-card';
+  card.innerHTML = `
+    <div class="ai-result-head">
+      <div class="ai-result-mode"><div class="ai-result-mode-dot"></div>${AI_MODES[mode]}</div>
+      <div class="ai-result-time">${ts}</div>
+    </div>
+    ${thumbUrl ? `<img class="ai-result-thumb" src="${thumbUrl}" alt="Captured frame">` : ''}
+    <div class="ai-result-body">
+      <div class="ai-result-text">${highlighted}</div>
+      <div class="ai-copy-row">
+        <button class="ai-copy-btn" onclick="copyAIResult(this, ${JSON.stringify(text)})">Copy text</button>
+      </div>
+    </div>
+  `;
+
+  // Insert after thinking indicator
+  const thinking = document.getElementById('aiThinking');
+  results.insertBefore(card, thinking.nextSibling);
+}
+
+function copyAIResult(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy text', 1500);
+  });
+}
+
+function setAIBtns(disabled) {
+  ['btnAnalyze','btnReadScreen','btnHardware','btnSuggest'].forEach(id => {
+    document.getElementById(id).disabled = disabled;
+  });
+  document.getElementById('aiBtn').classList.toggle('busy', disabled);
+}
+
+connectWS();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "remote-cam-support",
+  "version": "1.0.0",
+  "description": "Remote camera tech support — zero-install WebRTC sessions",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.17.0"
+  }
+}
