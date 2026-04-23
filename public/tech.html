@@ -99,71 +99,12 @@
   .vtright { display: flex; gap: 5px; }
   .ico-btn { width: 31px; height: 31px; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: color .15s, border-color .15s; }
   .ico-btn:hover { color: var(--text); border-color: var(--border-hi); }
-  .ico-btn.active { color: var(--accent); border-color: rgba(255,79,0,.32); background: var(--accent-dim); }
   .ico-btn.danger:hover { color: var(--red); border-color: var(--red); }
   .ico-btn svg { width: 14px; height: 14px; }
 
   .vstage { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
-  #remoteVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: none; background: #000; transform-origin: center center; transition: transform .2s ease; }
+  #remoteVideo { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; }
   #remoteVideo.on { display: block; }
-  .view-panel {
-    position: absolute;
-    top: 56px;
-    right: 22px;
-    width: 240px;
-    padding: 12px;
-    background: rgba(16,19,24,.96);
-    border: 1px solid var(--border-hi);
-    border-radius: 12px;
-    box-shadow: 0 18px 40px rgba(0,0,0,.35);
-    z-index: 35;
-    display: none;
-    backdrop-filter: blur(12px);
-  }
-  .view-panel.open { display: block; }
-  .view-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-  .view-title { font-size: 12px; font-weight: 700; letter-spacing: -.01em; }
-  .view-reset {
-    background: none;
-    border: none;
-    color: var(--accent);
-    cursor: pointer;
-    font-family: var(--mono);
-    font-size: 10px;
-  }
-  .view-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .view-btn {
-    min-height: 54px;
-    padding: 9px 10px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    color: var(--text);
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 4px;
-    transition: border-color .15s, background .15s, color .15s;
-    text-align: left;
-  }
-  .view-btn:hover { border-color: var(--border-hi); }
-  .view-btn.active { border-color: rgba(255,79,0,.32); background: var(--accent-dim); color: var(--accent); }
-  .view-btn-label { font-size: 12px; font-weight: 600; }
-  .view-btn-sub { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: .04em; }
-  .view-meta {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-  }
 
   .wait { display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
   .wait.off { display: none; }
@@ -310,7 +251,7 @@
   @keyframes aipulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,79,0,.4)}50%{box-shadow:0 0 0 4px rgba(255,79,0,.0)} }
 
   /* ── Annotation ── */
-  #annoCanvas { position: absolute; inset: 0; z-index: 6; pointer-events: none; width: 100%; height: 100%; transform-origin: center center; transition: transform .2s ease; }
+  #annoCanvas { position: absolute; inset: 0; z-index: 6; pointer-events: none; width: 100%; height: 100%; }
   #annoCanvas.drawing { pointer-events: auto; }
   #annoCanvas.tool-laser { cursor: none; }
   #annoCanvas.tool-circle { cursor: crosshair; }
@@ -429,9 +370,6 @@
         <button class="ico-btn ai-trigger" id="aiBtn" title="Vision AI — analyze frame" onclick="toggleAI()" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><path d="M12 5v1M12 18v1M5 12H4M20 12h-1"/></svg>
         </button>
-        <button class="ico-btn" id="viewSettingsBtn" title="View settings" onclick="toggleViewPanel(event)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 1-2 0 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 1 0-2 1.65 1.65 0 0 0 .6-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 1 2 0 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.24.37.38.8.38 1.25s-.14.88-.38 1.25c-.18.3-.27.64-.27 1s.09.7.27 1z"/></svg>
-        </button>
         <button class="ico-btn" title="Fullscreen" onclick="toggleFS()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
         </button>
@@ -441,35 +379,6 @@
         <button class="ico-btn danger" id="endBtn" title="End session" onclick="endSession()" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
-      </div>
-    </div>
-
-    <div class="view-panel" id="viewPanel" onclick="event.stopPropagation()">
-      <div class="view-head">
-        <div class="view-title">View settings</div>
-        <button class="view-reset" onclick="resetView()">Reset</button>
-      </div>
-      <div class="view-grid">
-        <button class="view-btn" id="flipBtn" onclick="toggleFlip()">
-          <span class="view-btn-label">Flip view</span>
-          <span class="view-btn-sub">HORIZONTAL</span>
-        </button>
-        <button class="view-btn" onclick="rotateView(-90)">
-          <span class="view-btn-label">Rotate left</span>
-          <span class="view-btn-sub">-90 DEG</span>
-        </button>
-        <button class="view-btn" onclick="rotateView(90)">
-          <span class="view-btn-label">Rotate right</span>
-          <span class="view-btn-sub">+90 DEG</span>
-        </button>
-        <button class="view-btn" id="fullscreenBtn" onclick="toggleFS()">
-          <span class="view-btn-label">Full screen</span>
-          <span class="view-btn-sub" id="fullscreenBtnSub">EXPAND</span>
-        </button>
-      </div>
-      <div class="view-meta">
-        <span id="viewMirrorState">Mirror off</span>
-        <span id="viewRotateState">0°</span>
       </div>
     </div>
 
@@ -619,7 +528,6 @@ const WS_BASE = location.protocol==='https:'?'wss://'+location.host:'ws://'+loca
 const STUN_FALLBACK = [{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
 
 let ws=null,pc=null,activeToken=null,activeSession=null,sessStart=null,durInt=null,ttlInt=null,liveSessions=[];
-let viewState={rotation:0,flipped:false};
 let _iceServers=null;
 async function getIceServers(){
   if(_iceServers)return _iceServers;
@@ -653,52 +561,6 @@ function connectWS(){
   ws.onmessage=e=>handleSignal(JSON.parse(e.data));
 }
 function sendWS(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}
-
-function applyViewSettings(){
-  const transform=`scaleX(${viewState.flipped?-1:1}) rotate(${viewState.rotation}deg)`;
-  ['remoteVideo','annoCanvas'].forEach(id=>{
-    document.getElementById(id).style.transform=transform;
-  });
-  document.getElementById('flipBtn').classList.toggle('active',viewState.flipped);
-  document.getElementById('viewMirrorState').textContent=viewState.flipped?'Mirror on':'Mirror off';
-  document.getElementById('viewRotateState').textContent=`${viewState.rotation}°`;
-  updateViewButtons();
-}
-
-function updateViewButtons(){
-  const panelOpen=document.getElementById('viewPanel').classList.contains('open');
-  const customView=viewState.flipped||viewState.rotation!==0;
-  document.getElementById('viewSettingsBtn').classList.toggle('active',panelOpen||customView);
-  document.getElementById('fullscreenBtn').classList.toggle('active',!!document.fullscreenElement);
-  document.getElementById('fullscreenBtnSub').textContent=document.fullscreenElement?'EXIT':'EXPAND';
-}
-
-function toggleViewPanel(event){
-  event?.stopPropagation();
-  document.getElementById('viewPanel').classList.toggle('open');
-  updateViewButtons();
-}
-
-function closeViewPanel(){
-  document.getElementById('viewPanel').classList.remove('open');
-  updateViewButtons();
-}
-
-function rotateView(delta){
-  viewState.rotation=(viewState.rotation+delta+360)%360;
-  applyViewSettings();
-}
-
-function toggleFlip(){
-  viewState.flipped=!viewState.flipped;
-  applyViewSettings();
-}
-
-function resetView(){
-  viewState={rotation:0,flipped:false};
-  applyViewSettings();
-  toast('View reset');
-}
 
 function handleSignal(msg){
   switch(msg.type){
@@ -842,11 +704,7 @@ function snapshot(){
   c.getContext('2d').drawImage(v,0,0);
   c.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`goshowme-${Date.now()}.png`;a.click();toast('Snapshot saved');});
 }
-function toggleFS(){
-  const s=document.querySelector('.vstage');
-  const p=!document.fullscreenElement?s.requestFullscreen():document.exitFullscreen();
-  Promise.resolve(p).finally(updateViewButtons);
-}
+function toggleFS(){const s=document.querySelector('.vstage');!document.fullscreenElement?s.requestFullscreen():document.exitFullscreen();}
 function startDur(){
   clearInterval(durInt);
   durInt=setInterval(()=>{
@@ -909,17 +767,8 @@ function setSize(s, el) {
 
 function getNorm(e) {
   const r = annoCanvas.getBoundingClientRect();
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  let x = (clientX - r.left) / r.width;
-  let y = (clientY - r.top) / r.height;
-  const tf = getComputedStyle(annoCanvas).transform;
-  if (tf && tf !== 'none') {
-    const matrix = new DOMMatrix(tf).inverse();
-    const local = new DOMPoint(clientX - (r.left + r.width / 2), clientY - (r.top + r.height / 2)).matrixTransform(matrix);
-    x = (local.x + r.width / 2) / r.width;
-    y = (local.y + r.height / 2) / r.height;
-  }
+  const x = ((e.touches ? e.touches[0].clientX : e.clientX) - r.left) / r.width;
+  const y = ((e.touches ? e.touches[0].clientY : e.clientY) - r.top)  / r.height;
   return { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
 }
 
@@ -1243,15 +1092,6 @@ function setAIBtns(disabled) {
   document.getElementById('aiBtn').classList.toggle('busy', disabled);
 }
 
-document.addEventListener('click',e=>{
-  const panel=document.getElementById('viewPanel');
-  const btn=document.getElementById('viewSettingsBtn');
-  if(panel.classList.contains('open')&&!panel.contains(e.target)&&!btn.contains(e.target))closeViewPanel();
-});
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeViewPanel();});
-document.addEventListener('fullscreenchange',updateViewButtons);
-
-applyViewSettings();
 connectWS();
 </script>
 </body>
