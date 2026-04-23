@@ -528,16 +528,19 @@ const STUN = [{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.c
 
 let ws=null,pc=null,activeToken=null,activeSession=null,sessStart=null,durInt=null,ttlInt=null,liveSessions=[];
 
+let _wsPingTimer=null;
 function connectWS(){
   ws=new WebSocket(WS_BASE);
   ws.onopen=()=>{
     document.getElementById('wsStatus').textContent='connected';
     document.getElementById('wsDot').style.background='var(--green)';
     if(activeToken) joinAsTech(activeToken);
+    _wsPingTimer=setInterval(()=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'ping'}));},25000);
   };
   ws.onclose=()=>{
     document.getElementById('wsStatus').textContent='reconnecting…';
     document.getElementById('wsDot').style.background='var(--amber)';
+    clearInterval(_wsPingTimer);
     setTimeout(connectWS,2000);
   };
   ws.onmessage=e=>handleSignal(JSON.parse(e.data));

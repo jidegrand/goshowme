@@ -190,9 +190,22 @@ const httpServer = http.createServer((req, res) => {
 
 const wss = new WebSocketServer({ server: httpServer });
 
+// Keep Railway's reverse proxy from dropping idle WebSocket connections.
+// Native ping frames are handled automatically by browsers (they send pong back).
+const pingInterval = setInterval(() => {
+  wss.clients.forEach(ws => {
+    if (!ws._alive) return ws.terminate();
+    ws._alive = false;
+    ws.ping();
+  });
+}, 30000);
+wss.on('close', () => clearInterval(pingInterval));
+
 wss.on('connection', (ws, req) => {
   ws._session = null;
   ws._role = null;
+  ws._alive = true;
+  ws.on('pong', () => { ws._alive = true; });
 
   ws.on('message', raw => {
     let msg;
