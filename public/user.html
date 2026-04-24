@@ -411,12 +411,28 @@ function connectWS(){
   ws=new WebSocket(WS_BASE);
   ws.onopen=()=>{
     sendWS({type:'join',token,role:'user'});
+    sendOrientation();
     _wsPingTimer=setInterval(()=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'ping'}));},25000);
   };
   ws.onclose=()=>clearInterval(_wsPingTimer);
   ws.onmessage=e=>handle(JSON.parse(e.data));
 }
 function sendWS(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}
+
+function getOrientationAngle(){
+  if(typeof screen!=='undefined'&&screen.orientation&&typeof screen.orientation.angle==='number')return screen.orientation.angle;
+  if(typeof window.orientation==='number')return ((window.orientation%360)+360)%360;
+  return 0;
+}
+function sendOrientation(){
+  const angle=getOrientationAngle();
+  console.log('[ORIENT] sending angle:',angle);
+  sendWS({type:'orientation',angle});
+}
+window.addEventListener('orientationchange',()=>setTimeout(sendOrientation,150));
+if(typeof screen!=='undefined'&&screen.orientation&&screen.orientation.addEventListener){
+  screen.orientation.addEventListener('change',sendOrientation);
+}
 
 async function handle(msg){
   switch(msg.type){
@@ -492,8 +508,13 @@ function resizeACanvas() {
 }
 new ResizeObserver(resizeACanvas).observe(document.body);
 
-// Local preview is not mirrored (rear camera), so annotations render at the same coords.
-function flipX(x) { return x; }
+// Tech draws in the same "upright" scene frame the user's browser renders locally
+// (browsers apply orientation metadata to the local preview automatically), so in
+// the common case coords pass through untouched. If a client ever renders the raw
+// sensor orientation, rotate by the current angle around (0.5,0.5) here.
+function mapCoord(p) {
+  return { x: p.x, y: p.y };
+}
 
 function handleAnno(msg) {
   const color = msg._color || '#FF4F00';
@@ -501,7 +522,8 @@ function handleAnno(msg) {
   switch (msg.tool) {
     case 'laser':
       if (msg.action === 'move') {
-        aLaser = { x: flipX(msg.x), y: msg.y, color };
+        const p = mapCoord({ x: msg.x, y: msg.y });
+        aLaser = { x: p.x, y: p.y, color };
         aRedraw();
       } else if (msg.action === 'end') {
         aLaser = null;
@@ -513,8 +535,8 @@ function handleAnno(msg) {
       if (msg.action === 'add') {
         aAnnotations.push({
           type: msg.tool,
-          start: { x: flipX(msg.start.x), y: msg.start.y },
-          end:   { x: flipX(msg.end.x),   y: msg.end.y   },
+          start: mapCoord(msg.start),
+          end:   mapCoord(msg.end),
           color, size, ts: Date.now()
         });
         aSchedFade();
@@ -525,7 +547,7 @@ function handleAnno(msg) {
       if (msg.action === 'add') {
         aAnnotations.push({
           type: 'pen',
-          pts: msg.pts.map(p => ({ x: flipX(p.x), y: p.y })),
+          pts: msg.pts.map(mapCoord),
           color, size, ts: Date.now()
         });
         aSchedFade();
@@ -534,7 +556,7 @@ function handleAnno(msg) {
         // draw preview strokes directly (not stored, just visual)
         aRedraw();
         if (msg.pts && msg.pts.length > 1) {
-          const pts = msg.pts.map(p => ({ x: flipX(p.x), y: p.y }));
+          const pts = msg.pts.map(mapCoord);
           aDrawPen(pts, color, size, 0.6);
         }
       }

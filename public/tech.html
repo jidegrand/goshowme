@@ -115,8 +115,11 @@
   .ico-btn svg { width: 14px; height: 14px; }
 
   .vstage { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
-  #remoteVideo { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; }
+  #remoteVideo { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; transition: transform .25s ease; transform-origin: center center; }
   #remoteVideo.on { display: block; }
+  #remoteVideo.rot-90  { transform: rotate(-90deg); }
+  #remoteVideo.rot-180 { transform: rotate(180deg); }
+  #remoteVideo.rot-270 { transform: rotate(90deg); }
 
   .wait { display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
   .wait.off { display: none; }
@@ -961,6 +964,17 @@ function connectWS(){
 }
 function sendWS(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}
 
+let remoteAngle = 0;
+function applyRemoteOrientation(angle){
+  remoteAngle = ((Number(angle)||0) % 360 + 360) % 360;
+  console.log('[ORIENT] remote angle:', remoteAngle);
+  const v = document.getElementById('remoteVideo');
+  v.classList.remove('rot-90','rot-180','rot-270');
+  if (remoteAngle === 90)  v.classList.add('rot-90');
+  else if (remoteAngle === 180) v.classList.add('rot-180');
+  else if (remoteAngle === 270) v.classList.add('rot-270');
+}
+
 function handleSignal(msg){
   switch(msg.type){
     case 'joined': setConn('idle'); break;
@@ -968,6 +982,7 @@ function handleSignal(msg){
     case 'user_disconnected': toast('User disconnected'); setConn('idle'); tearPeer(); liveBadge(false); break;
     case 'answer': if(pc)pc.setRemoteDescription(new RTCSessionDescription(msg)); break;
     case 'candidate': if(pc&&msg.candidate)pc.addIceCandidate(new RTCIceCandidate(msg.candidate)); break;
+    case 'orientation': applyRemoteOrientation(msg.angle); break;
     case 'peer_ended': case 'session_expired': toast(msg.type==='session_expired'?'Session expired':'Session ended by user'); tearSession(); break;
   }
 }
@@ -1409,7 +1424,7 @@ function clearAnnotations() {
 }
 
 function sendAnno(data) {
-  sendWS({ type: 'annotate', ...data, _color: annoColor, _size: annoSize });
+  sendWS({ type: 'annotate', ...data, _color: annoColor, _size: annoSize, _fromAngle: remoteAngle });
 }
 
 function showAnnoToolbar(on) {
