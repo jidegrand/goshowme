@@ -1044,10 +1044,14 @@ let lastRemoteAngle = 0;
 let remoteZoom = 1;
 let followRemoteOrientation = loadOrientationFollowPreference();
 function normalizedRotationDeg(angle){
-  if (angle === 90) return -90;
-  if (angle === 180) return 180;
-  if (angle === 270) return 90;
-  return 0;
+  // iOS Safari CVO already lays the frame down 180° off from our
+  // compensation convention, so the video arrived upside-down with
+  // AUTO ROTATE on. Offset every quadrant by +180° so AUTO ROTATE
+  // now ends up upright in all four phone positions.
+  if (angle === 90) return 90;
+  if (angle === 180) return 0;
+  if (angle === 270) return -90;
+  return 180;
 }
 function updateOrientationToggleUI(){
   const btn=document.getElementById('orientationToggleBtn');
