@@ -155,6 +155,56 @@
     width: 100%; height: 100%;
     pointer-events: none;
   }
+
+  /* Smooth rotation when orientation changes */
+  #cameraShell { transition: transform 0.25s ease; }
+
+  /* Counter-rotate the camera shell to keep portrait view in landscape-right (90°) */
+  body.cam-landscape-right #cameraShell {
+    position: fixed;
+    width: 100dvh;
+    height: 100dvw;
+    max-width: none;
+    top: calc((100dvh - 100dvw) / 2);
+    left: calc((100dvw - 100dvh) / 2);
+    transform: rotate(-90deg);
+    background: #000;
+    overflow: hidden;
+    z-index: 999;
+  }
+  /* Counter-rotate for landscape-left (270°) */
+  body.cam-landscape-left #cameraShell {
+    position: fixed;
+    width: 100dvh;
+    height: 100dvw;
+    max-width: none;
+    top: calc((100dvh - 100dvw) / 2);
+    left: calc((100dvw - 100dvh) / 2);
+    transform: rotate(90deg);
+    background: #000;
+    overflow: hidden;
+    z-index: 999;
+  }
+  /* Counter-rotate for upside-down portrait (180°) */
+  body.cam-portrait-flipped #cameraShell {
+    transform: rotate(180deg);
+  }
+  /* In landscape camera mode: let cam-wrap fill the shell without tiny max-height */
+  body.cam-landscape-right .cam-wrap,
+  body.cam-landscape-left .cam-wrap {
+    aspect-ratio: auto;
+    max-height: none;
+    border-radius: 0;
+    margin-bottom: 0;
+    flex: 1;
+  }
+  /* Hide non-camera controls in landscape to give full view */
+  body.cam-landscape-right .info-bar,
+  body.cam-landscape-right .camera-actions,
+  body.cam-landscape-right .btn-end,
+  body.cam-landscape-left .info-bar,
+  body.cam-landscape-left .camera-actions,
+  body.cam-landscape-left .btn-end { display: none; }
 </style>
 </head>
 <body>
@@ -310,7 +360,22 @@ async function getIceServers(){
   return _iceServers;
 }
 
-function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));document.getElementById(id).classList.add('on');}
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  if(id==='scrCamera')applyOrientationFix();
+  else document.body.classList.remove('cam-landscape-right','cam-landscape-left','cam-portrait-flipped');
+}
+
+function applyOrientationFix(){
+  document.body.classList.remove('cam-landscape-right','cam-landscape-left','cam-portrait-flipped');
+  if(!document.getElementById('scrCamera')?.classList.contains('on'))return;
+  const angle=getOrientationAngle();
+  if(angle===90)document.body.classList.add('cam-landscape-right');
+  else if(angle===270||angle===-90)document.body.classList.add('cam-landscape-left');
+  else if(angle===180)document.body.classList.add('cam-portrait-flipped');
+  resizeACanvas();
+}
 
 function getOrientationAngle(){
   if(typeof screen!=='undefined'&&screen.orientation&&typeof screen.orientation.angle==='number'){
@@ -377,12 +442,14 @@ async function applyCameraView({attemptLock=false}={}){
   applyFullscreenClass(isFullscreenActive());
   updateViewButtons();
   resizeACanvas();
+  applyOrientationFix();
+  if(attemptLock){try{await screen.orientation.lock('portrait');}catch(_){}}
 }
 
 async function toggleFullscreen(){
   if(isFullscreenActive())await exitFullscreen();
   else await enterFullscreen();
-  await applyCameraView();
+  await applyCameraView({attemptLock:true});
 }
 
 async function init(){
@@ -408,6 +475,8 @@ async function requestCamera(){
     document.getElementById('localVideo').srcObject=previewStream||localStream;
     show('scrWait');
     connectWS();
+    // Attempt to lock portrait — works on Android Chrome and in fullscreen; silently ignored elsewhere
+    try{await screen.orientation.lock('portrait');}catch(_){}
   }catch(err){
     if(err.name==='NotAllowedError')expire('Camera blocked','Tap browser settings, allow camera access, then refresh.');
     else expire('Camera error',err.message);
@@ -545,6 +614,8 @@ function endSession(){sendWS({type:'end'});cleanup();show('scrEnded');}
 function cleanup(){
   clearInterval(ttlTimer);
   stopVideoNormalization();
+  document.body.classList.remove('cam-landscape-right','cam-landscape-left','cam-portrait-flipped');
+  try{screen.orientation.unlock();}catch(_){}
   if(localStream)localStream.getTracks().forEach(t=>t.stop());
   if(previewStream)previewStream.getVideoTracks().forEach(t=>t.stop());
   previewStream=null;
@@ -738,6 +809,9 @@ window.addEventListener('resize',()=>{
   resizeACanvas();
   applyCameraView();
 });
+// Orientation change: small delay lets the browser finish rotating before we measure
+window.addEventListener('orientationchange',()=>setTimeout(applyOrientationFix,50));
+if(screen.orientation)screen.orientation.addEventListener('change',applyOrientationFix);
 
 applyCameraView();
 </script>
