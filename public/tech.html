@@ -108,7 +108,7 @@
   .live-badge { font-family: var(--mono); font-size: 10px; padding: 3px 10px; border-radius: 20px; background: rgba(255,68,85,.14); border: 1px solid rgba(255,68,85,.28); color: var(--red); display: none; align-items: center; gap: 5px; }
   .live-badge.on { display: flex; }
   .live-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red); animation: blink 1.2s infinite; }
-  .vtright { display: flex; gap: 5px; }
+  .vtright { display: flex; align-items: center; gap: 5px; }
   .ico-btn { width: 31px; height: 31px; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: color .15s, border-color .15s; }
   .ico-btn:hover { color: var(--text); border-color: var(--border-hi); }
   .ico-btn:disabled { opacity: .35; cursor: not-allowed; }
@@ -116,6 +116,9 @@
   .ico-btn svg { width: 14px; height: 14px; }
   .zoom-bar { display: flex; align-items: center; gap: 5px; margin-right: 6px; padding-right: 6px; border-right: 1px solid var(--border); }
   .zoom-stat { min-width: 42px; text-align: center; font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .toggle-btn { width: auto; padding: 0 10px; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: .03em; text-transform: uppercase; }
+  .toggle-btn.toggle-on { color: var(--accent); background: var(--accent-dim); border-color: rgba(255,79,0,.34); }
+  .toggle-btn span { white-space: nowrap; }
 
   .vstage { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
   .media-frame { position: absolute; left: 50%; top: 50%; width: 100%; height: 100%; max-width: 100%; max-height: 100%; transform: translate(-50%, -50%); transform-origin: center center; overflow: hidden; border-radius: 12px; background: #000; transition: transform .2s ease, width .2s ease, height .2s ease; }
@@ -166,6 +169,11 @@
   .lead-inline-note { font-size: 11px; line-height: 1.55; color: var(--muted); }
   .lead-toggle { margin-top: 14px; padding: 0; background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; text-align: left; }
   .lead-toggle:hover { color: var(--text); text-decoration: underline; }
+
+  @media (max-width: 980px) {
+    .toggle-btn { width: 31px; padding: 0; }
+    .toggle-btn span { display: none; }
+  }
 
   /* ── AI Vision sidebar ── */
   .vpane { position: relative; }
@@ -433,6 +441,10 @@
           </button>
           <span class="zoom-stat" id="zoomStat">100%</span>
         </div>
+        <button class="ico-btn toggle-btn" id="orientationToggleBtn" title="Auto rotate with phone is off" aria-pressed="false" onclick="toggleOrientationFollow()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 13.66-5.66L20 9"/><path d="M20 4v5h-5"/><path d="M20 12a8 8 0 0 1-13.66 5.66L4 15"/><path d="M4 20v-5h5"/></svg>
+          <span>Auto rotate</span>
+        </button>
         <button class="ico-btn ai-trigger" id="aiBtn" title="Vision AI — analyze frame" onclick="toggleAI()" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><path d="M12 5v1M12 18v1M5 12H4M20 12h-1"/></svg>
         </button>
@@ -625,6 +637,7 @@ const MONTHLY_FREE_LIMIT = 5;
 const AUTH_STORAGE_KEY = 'goshowmeAuth';
 const LEGACY_LEAD_STORAGE_KEY = 'goshowmeLead';
 const FREE_USED_KEY = 'freeUsed';
+const TECH_ORIENTATION_FOLLOW_KEY = 'goshowmeTechFollowOrientation';
 // Fallback used only if /api/ice-servers fetch fails.
 const STUN_FALLBACK = [{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
 
@@ -641,6 +654,14 @@ function normalizeEmail(email){return String(email||'').trim().toLowerCase();}
 function isValidEmail(email){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);}
 function normalizeName(name){return String(name||'').trim().replace(/\s+/g,' ');}
 function isValidName(name){return normalizeName(name).length>=2;}
+function loadOrientationFollowPreference(){
+  try{return localStorage.getItem(TECH_ORIENTATION_FOLLOW_KEY)==='true';}
+  catch{return false;}
+}
+function saveOrientationFollowPreference(enabled){
+  try{localStorage.setItem(TECH_ORIENTATION_FOLLOW_KEY,enabled?'true':'false');}
+  catch{}
+}
 function loadAuthState(){
   try{
     const raw=JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY)||localStorage.getItem(LEGACY_LEAD_STORAGE_KEY)||'{}');
@@ -980,12 +1001,21 @@ function connectWS(){
 function sendWS(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}
 
 let remoteAngle = 0;
+let lastRemoteAngle = 0;
 let remoteZoom = 1;
+let followRemoteOrientation = loadOrientationFollowPreference();
 function normalizedRotationDeg(angle){
   if (angle === 90) return -90;
   if (angle === 180) return 180;
   if (angle === 270) return 90;
   return 0;
+}
+function updateOrientationToggleUI(){
+  const btn=document.getElementById('orientationToggleBtn');
+  if(!btn)return;
+  btn.classList.toggle('toggle-on',followRemoteOrientation);
+  btn.setAttribute('aria-pressed',followRemoteOrientation?'true':'false');
+  btn.title=followRemoteOrientation?'Auto rotate with phone is on':'Auto rotate with phone is off';
 }
 function clampZoom(value){
   return Math.min(3, Math.max(1, Math.round(value * 100) / 100));
@@ -1033,10 +1063,24 @@ function setZoom(nextZoom){
 function zoomIn(){ setZoom(remoteZoom + 0.25); }
 function zoomOut(){ setZoom(remoteZoom - 0.25); }
 function resetZoom(){ setZoom(1); }
-function applyRemoteOrientation(angle){
-  remoteAngle = ((Number(angle)||0) % 360 + 360) % 360;
-  console.log('[ORIENT] remote angle:', remoteAngle);
+function applyDisplayedOrientation(){
+  remoteAngle = followRemoteOrientation ? lastRemoteAngle : 0;
   fitMediaFrame();
+}
+function setOrientationFollow(enabled){
+  followRemoteOrientation = !!enabled;
+  saveOrientationFollowPreference(followRemoteOrientation);
+  updateOrientationToggleUI();
+  applyDisplayedOrientation();
+}
+function toggleOrientationFollow(){
+  setOrientationFollow(!followRemoteOrientation);
+  toast(followRemoteOrientation ? 'Auto rotate on' : 'Auto rotate off');
+}
+function applyRemoteOrientation(angle){
+  lastRemoteAngle = ((Number(angle)||0) % 360 + 360) % 360;
+  console.log('[ORIENT] remote angle:', lastRemoteAngle, 'follow=', followRemoteOrientation);
+  if(followRemoteOrientation)applyDisplayedOrientation();
 }
 
 function handleSignal(msg){
@@ -1091,8 +1135,10 @@ function tearPeer(){
   document.getElementById('statState').textContent=activeToken?'waiting':'—';
   const v=document.getElementById('remoteVideo');v.srcObject=null;v.classList.remove('on');v.onloadedmetadata=null;
   remoteAngle=0;
+  lastRemoteAngle=0;
   remoteZoom=1;
   fitMediaFrame();
+  updateOrientationToggleUI();
   document.getElementById('waitScreen').classList.remove('off');
   showAnnoToolbar(false);
   document.getElementById('aiBtn').style.display='none';
@@ -1655,6 +1701,7 @@ function setAIBtns(disabled) {
 
 fitMediaFrame();
 updateZoomUI();
+updateOrientationToggleUI();
 updateLeadUI();
 refreshAuthState();
 connectWS();
