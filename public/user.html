@@ -393,6 +393,10 @@ async function init(){
 }
 
 async function requestCamera(){
+  // Request motion/orientation permission FIRST while we're still inside the
+  // original user-gesture context. iOS 13+ Safari requires this, and the
+  // gesture is consumed by any `await`, so we must do this before getUserMedia.
+  await requestGyroPermission();
   try{
     localStream=await navigator.mediaDevices.getUserMedia({
       video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:true
@@ -400,9 +404,6 @@ async function requestCamera(){
     const localVideo=document.getElementById('localVideo');
     localVideo.srcObject=localStream;
     localVideo.onloadedmetadata=()=>sendOrientation(true);
-    if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){
-      try{await DeviceOrientationEvent.requestPermission();}catch(_){}
-    }
     show('scrWait');
     connectWS();
     // Attempt to lock portrait — works on Android Chrome in fullscreen; silently ignored elsewhere
@@ -410,6 +411,24 @@ async function requestCamera(){
   }catch(err){
     if(err.name==='NotAllowedError')expire('Camera blocked','Tap browser settings, allow camera access, then refresh.');
     else expire('Camera error',err.message);
+  }
+}
+
+let _gyroPermissionGranted=false;
+async function requestGyroPermission(){
+  try{
+    if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){
+      const result=await DeviceOrientationEvent.requestPermission();
+      _gyroPermissionGranted=(result==='granted');
+      console.log('[ORIENT] DeviceOrientation permission:',result);
+    }else{
+      // Non-iOS or older iOS: permission not required
+      _gyroPermissionGranted=true;
+      console.log('[ORIENT] DeviceOrientation: permission API not present, assuming granted');
+    }
+  }catch(e){
+    console.warn('[ORIENT] DeviceOrientation permission error:',e);
+    _gyroPermissionGranted=false;
   }
 }
 
@@ -442,13 +461,35 @@ function inferSensorOrientation(event){
   const beta=Number(event.beta);
   const gamma=Number(event.gamma);
   if(!Number.isFinite(beta)||!Number.isFinite(gamma))return null;
-  if(Math.abs(gamma)>45)return gamma>0?90:270;
-  if(Math.abs(beta)>45)return beta>0?0:180;
-  return null;
+  // Use a hysteresis band: only switch quadrants when tilt is clearly >30deg
+  // in one axis. Otherwise default to portrait upright (0).
+  const THRESH=30;
+  if(Math.abs(gamma)>THRESH&&Math.abs(gamma)>Math.abs(beta)){
+    // Rotated to landscape — sign of gamma gives which way
+    return gamma>0?90:270;
+  }
+  if(beta<-THRESH)return 180; // upside-down portrait
+  return 0; // portrait upright (including flat-on-table fallback)
 }
+let _gyroFirstLogged=false;
+let _gyroThrottleTs=0;
 function handleDeviceOrientation(event){
+  if(!_gyroFirstLogged){
+    _gyroFirstLogged=true;
+    console.log('[ORIENT] first deviceorientation event:',
+      {alpha:event.alpha,beta:event.beta,gamma:event.gamma,absolute:event.absolute});
+  }
+  // Throttle to ~10Hz to avoid WS spam; the quadrant-change filter in
+  // sendOrientation dedupes anyway, this just reduces CPU.
+  const now=Date.now();
+  if(now-_gyroThrottleTs<100)return;
+  _gyroThrottleTs=now;
   const inferred=inferSensorOrientation(event);
   if(inferred===null)return;
+  if(inferred!==sensorOrientationAngle){
+    console.log('[ORIENT] gyro quadrant change:',sensorOrientationAngle,'->',inferred,
+      'beta=',event.beta?.toFixed?.(1),'gamma=',event.gamma?.toFixed?.(1));
+  }
   sensorOrientationAngle=inferred;
   sendOrientation();
 }
@@ -467,7 +508,7 @@ function sendOrientation(force=false){
 }
 window.addEventListener('orientationchange',()=>setTimeout(()=>sendOrientation(true),150));
 window.addEventListener('resize',()=>setTimeout(sendOrientation,150));
-window.addEventListener('deviceorientation',handleDeviceOrientation,{passive:true});
+window.addEventListener('deviceorientation',handleDeviceOrientation);
 if(typeof screen!=='undefined'&&screen.orientation&&screen.orientation.addEventListener){
   screen.orientation.addEventListener('change',()=>sendOrientation(true));
 }
