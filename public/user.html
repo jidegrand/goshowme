@@ -292,9 +292,10 @@ const WS_BASE=location.protocol==='https:'?'wss://'+location.host:'ws://'+locati
 const STUN_FALLBACK=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
 const token=location.pathname.split('/join/')[1]?.split('/')[0];
 
-let ws=null,pc=null,localStream=null,meta=null,ttlTimer=null;
+let ws=null,pc=null,localStream=null,previewStream=null,meta=null,ttlTimer=null;
 let pseudoFullscreen=false;
 let _iceServers=null;
+let processingVideo=null,processingCanvas=null,processingCtx=null,processingRaf=null,baseOrientationAngle=0;
 async function getIceServers(){
   if(_iceServers)return _iceServers;
   try{
@@ -310,6 +311,16 @@ async function getIceServers(){
 }
 
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));document.getElementById(id).classList.add('on');}
+
+function getOrientationAngle(){
+  if(typeof screen!=='undefined'&&screen.orientation&&typeof screen.orientation.angle==='number'){
+    return screen.orientation.angle;
+  }
+  if(typeof window.orientation==='number'){
+    return window.orientation;
+  }
+  return 0;
+}
 
 function isFullscreenActive(){
   return !!document.fullscreenElement || pseudoFullscreen;
@@ -393,13 +404,91 @@ async function requestCamera(){
     localStream=await navigator.mediaDevices.getUserMedia({
       video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:true
     });
-    document.getElementById('localVideo').srcObject=localStream;
+    previewStream=await setupVideoProcessing(localStream);
+    document.getElementById('localVideo').srcObject=previewStream||localStream;
     show('scrWait');
     connectWS();
   }catch(err){
     if(err.name==='NotAllowedError')expire('Camera blocked','Tap browser settings, allow camera access, then refresh.');
     else expire('Camera error',err.message);
   }
+}
+
+async function setupVideoProcessing(stream){
+  const videoTrack=stream.getVideoTracks()[0];
+  if(!videoTrack)return null;
+
+  processingVideo=document.createElement('video');
+  processingVideo.autoplay=true;
+  processingVideo.muted=true;
+  processingVideo.playsInline=true;
+  processingVideo.srcObject=new MediaStream([videoTrack]);
+  processingCanvas=document.createElement('canvas');
+  processingCtx=processingCanvas.getContext('2d');
+  baseOrientationAngle=getOrientationAngle();
+
+  await processingVideo.play();
+  await new Promise(resolve=>{
+    if(processingVideo.readyState>=2&&processingVideo.videoWidth&&processingVideo.videoHeight)return resolve();
+    processingVideo.onloadedmetadata=()=>resolve();
+  });
+
+  processingCanvas.width=processingVideo.videoWidth||720;
+  processingCanvas.height=processingVideo.videoHeight||1280;
+
+  const fps=Math.min(videoTrack.getSettings().frameRate||30,30);
+  const renderedStream=processingCanvas.captureStream(fps||30);
+  startVideoNormalization();
+
+  const audioTracks=stream.getAudioTracks();
+  return new MediaStream([...renderedStream.getVideoTracks(),...audioTracks]);
+}
+
+function startVideoNormalization(){
+  stopVideoNormalization();
+  const draw=()=>{
+    renderNormalizedFrame();
+    processingRaf=requestAnimationFrame(draw);
+  };
+  draw();
+}
+
+function stopVideoNormalization(){
+  if(processingRaf){
+    cancelAnimationFrame(processingRaf);
+    processingRaf=null;
+  }
+}
+
+function renderNormalizedFrame(){
+  if(!processingVideo||!processingCanvas||!processingCtx)return;
+  if(processingVideo.readyState<2||!processingVideo.videoWidth||!processingVideo.videoHeight)return;
+
+  const ctx=processingCtx;
+  const canvas=processingCanvas;
+  const currentAngle=getOrientationAngle();
+  let delta=((currentAngle-baseOrientationAngle)%360+360)%360;
+  if(delta===270)delta=-90;
+  if(delta===180)delta=180;
+
+  const sourceWidth=processingVideo.videoWidth;
+  const sourceHeight=processingVideo.videoHeight;
+  const rotatedByQuarterTurn=Math.abs(delta)===90||Math.abs(delta)===270;
+  const fitWidth=rotatedByQuarterTurn?sourceHeight:sourceWidth;
+  const fitHeight=rotatedByQuarterTurn?sourceWidth:sourceHeight;
+  const scale=Math.min(canvas.width/fitWidth,canvas.height/fitHeight);
+  const drawWidth=sourceWidth*scale;
+  const drawHeight=sourceHeight*scale;
+
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#000';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.translate(canvas.width/2,canvas.height/2);
+  ctx.rotate((-delta*Math.PI)/180);
+  ctx.drawImage(processingVideo,-drawWidth/2,-drawHeight/2,drawWidth,drawHeight);
+  ctx.restore();
 }
 
 let _wsPingTimer=null;
@@ -440,7 +529,12 @@ async function handleOffer(offer){
   pc.oniceconnectionstatechange=()=>console.log('[ICE] connectionState:',pc.iceConnectionState);
   pc.onicegatheringstatechange=()=>console.log('[ICE] gatheringState:',pc.iceGatheringState);
   pc.onicecandidateerror=e=>console.warn('[ICE] candidate error:',e.errorCode,e.errorText,'url=',e.url);
-  if(localStream)localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+  if(previewStream){
+    previewStream.getVideoTracks().forEach(t=>pc.addTrack(t,previewStream));
+  }else if(localStream){
+    localStream.getVideoTracks().forEach(t=>pc.addTrack(t,localStream));
+  }
+  if(localStream)localStream.getAudioTracks().forEach(t=>pc.addTrack(t,localStream));
   await pc.setRemoteDescription(new RTCSessionDescription(offer));
   const answer=await pc.createAnswer();
   await pc.setLocalDescription(answer);
@@ -450,7 +544,18 @@ async function handleOffer(offer){
 function endSession(){sendWS({type:'end'});cleanup();show('scrEnded');}
 function cleanup(){
   clearInterval(ttlTimer);
+  stopVideoNormalization();
   if(localStream)localStream.getTracks().forEach(t=>t.stop());
+  if(previewStream)previewStream.getVideoTracks().forEach(t=>t.stop());
+  previewStream=null;
+  localStream=null;
+  if(processingVideo){
+    processingVideo.pause();
+    processingVideo.srcObject=null;
+    processingVideo=null;
+  }
+  processingCanvas=null;
+  processingCtx=null;
   if(pc){try{pc.close();}catch(_){}pc=null;}
 }
 function expire(title,sub){
