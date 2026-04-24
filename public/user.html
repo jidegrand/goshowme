@@ -293,6 +293,8 @@ const STUN_FALLBACK=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.g
 const token=location.pathname.split('/join/')[1]?.split('/')[0];
 
 let ws=null,pc=null,localStream=null,meta=null,ttlTimer=null;
+let sensorOrientationAngle=null;
+let lastSentOrientation=null;
 let pseudoFullscreen=false;
 let _iceServers=null;
 async function getIceServers(){
@@ -395,7 +397,12 @@ async function requestCamera(){
     localStream=await navigator.mediaDevices.getUserMedia({
       video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:true
     });
-    document.getElementById('localVideo').srcObject=localStream;
+    const localVideo=document.getElementById('localVideo');
+    localVideo.srcObject=localStream;
+    localVideo.onloadedmetadata=()=>sendOrientation(true);
+    if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){
+      try{await DeviceOrientationEvent.requestPermission();}catch(_){}
+    }
     show('scrWait');
     connectWS();
     // Attempt to lock portrait — works on Android Chrome in fullscreen; silently ignored elsewhere
@@ -411,7 +418,7 @@ function connectWS(){
   ws=new WebSocket(WS_BASE);
   ws.onopen=()=>{
     sendWS({type:'join',token,role:'user'});
-    sendOrientation();
+    sendOrientation(true);
     _wsPingTimer=setInterval(()=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'ping'}));},25000);
   };
   ws.onclose=()=>clearInterval(_wsPingTimer);
@@ -419,19 +426,50 @@ function connectWS(){
 }
 function sendWS(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}
 
+function normalizeOrientationAngle(angle){
+  const normalized=((Number(angle)||0)%360+360)%360;
+  if(normalized>=315||normalized<45)return 0;
+  if(normalized<135)return 90;
+  if(normalized<225)return 180;
+  return 270;
+}
+function getScreenOrientationAngle(){
+  if(typeof screen!=='undefined'&&screen.orientation&&typeof screen.orientation.angle==='number')return normalizeOrientationAngle(screen.orientation.angle);
+  if(typeof window.orientation==='number')return normalizeOrientationAngle(window.orientation);
+  return null;
+}
+function inferSensorOrientation(event){
+  const beta=Number(event.beta);
+  const gamma=Number(event.gamma);
+  if(!Number.isFinite(beta)||!Number.isFinite(gamma))return null;
+  if(Math.abs(gamma)>45)return gamma>0?90:270;
+  if(Math.abs(beta)>45)return beta>0?0:180;
+  return null;
+}
+function handleDeviceOrientation(event){
+  const inferred=inferSensorOrientation(event);
+  if(inferred===null)return;
+  sensorOrientationAngle=inferred;
+  sendOrientation();
+}
 function getOrientationAngle(){
-  if(typeof screen!=='undefined'&&screen.orientation&&typeof screen.orientation.angle==='number')return screen.orientation.angle;
-  if(typeof window.orientation==='number')return ((window.orientation%360)+360)%360;
+  if(sensorOrientationAngle!==null)return sensorOrientationAngle;
+  const screenAngle=getScreenOrientationAngle();
+  if(screenAngle!==null)return screenAngle;
   return 0;
 }
-function sendOrientation(){
-  const angle=getOrientationAngle();
+function sendOrientation(force=false){
+  const angle=normalizeOrientationAngle(getOrientationAngle());
+  if(!force&&angle===lastSentOrientation)return;
+  lastSentOrientation=angle;
   console.log('[ORIENT] sending angle:',angle);
   sendWS({type:'orientation',angle});
 }
-window.addEventListener('orientationchange',()=>setTimeout(sendOrientation,150));
+window.addEventListener('orientationchange',()=>setTimeout(()=>sendOrientation(true),150));
+window.addEventListener('resize',()=>setTimeout(sendOrientation,150));
+window.addEventListener('deviceorientation',handleDeviceOrientation,{passive:true});
 if(typeof screen!=='undefined'&&screen.orientation&&screen.orientation.addEventListener){
-  screen.orientation.addEventListener('change',sendOrientation);
+  screen.orientation.addEventListener('change',()=>sendOrientation(true));
 }
 
 async function handle(msg){
