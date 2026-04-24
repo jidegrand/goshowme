@@ -27,6 +27,7 @@
     --mono: 'DM Mono', monospace;
   }
   body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+  body.modal-open { overflow: hidden; }
 
   /* header */
   header { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 54px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -54,14 +55,25 @@
   .sec-lbl { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; color: var(--dim); text-transform: uppercase; margin-bottom: 13px; }
   label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; font-family: var(--mono); }
   .frow { margin-bottom: 10px; }
-  input[type=text], select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 8px 11px; font-family: var(--font); font-size: 13px; color: var(--text); outline: none; transition: border-color .15s; }
-  input[type=text]:focus, select:focus { border-color: var(--accent); }
+  input[type=text], input[type=email], select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 8px 11px; font-family: var(--font); font-size: 13px; color: var(--text); outline: none; transition: border-color .15s; }
+  input[type=text]:focus, input[type=email]:focus, select:focus { border-color: var(--accent); }
   input::placeholder { color: var(--dim); }
   select option { background: var(--surface2); }
   .btn-gen { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 10px; font-family: var(--font); font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity .15s, transform .1s; letter-spacing: -.01em; }
   .btn-gen:hover { opacity: .88; }
   .btn-gen:active { transform: scale(.98); }
   .btn-gen:disabled { opacity: .3; cursor: not-allowed; }
+  .btn-gen.hidden { display: none; }
+  .usage-indicator { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); }
+  .usage-indicator.on { display: block; }
+  .usage-label { font-size: 11px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 4px; }
+  .usage-text { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .upgrade-card { display: none; margin-top: 10px; padding: 12px; border-radius: 12px; background: linear-gradient(180deg, rgba(255,79,0,.12), rgba(255,79,0,.04)); border: 1px solid rgba(255,79,0,.18); }
+  .upgrade-card.on { display: block; }
+  .upgrade-msg { font-size: 12px; line-height: 1.6; color: var(--text); }
+  .upgrade-btn { display: inline-flex; align-items: center; justify-content: center; width: 100%; margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: var(--accent); color: #fff; text-decoration: none; font-size: 13px; font-weight: 700; letter-spacing: -.01em; transition: opacity .15s, transform .1s; }
+  .upgrade-btn:hover { opacity: .88; }
+  .upgrade-btn:active { transform: scale(.98); }
 
   /* session card */
   .sess-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 12px; margin-top: 12px; display: none; }
@@ -128,6 +140,22 @@
 
   .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%) translateY(6px); background: var(--surface2); border: 1px solid var(--border-hi); border-radius: 8px; padding: 8px 15px; font-size: 12px; font-family: var(--mono); opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; white-space: nowrap; z-index: 200; }
   .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .lead-modal { position: fixed; inset: 0; z-index: 250; display: none; align-items: center; justify-content: center; padding: 24px; background: rgba(10,11,14,.82); backdrop-filter: blur(6px); }
+  .lead-modal.on { display: flex; }
+  .lead-modal-shell { width: min(100%, 420px); }
+  .lead-modal-card { background: var(--surface); border: 1px solid var(--border-hi); border-radius: 18px; padding: 22px; box-shadow: 0 24px 70px rgba(0,0,0,.45); opacity: 0; transform: translateY(12px); transition: opacity .15s ease, transform .15s ease; }
+  .lead-modal-card.is-visible { opacity: 1; transform: translateY(0); }
+  .lead-modal-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+  .lead-modal-title { font-size: 24px; line-height: 1.1; letter-spacing: -.04em; }
+  .lead-modal-subtitle { margin-top: 10px; font-size: 13px; line-height: 1.65; color: var(--muted); }
+  .lead-form { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .lead-submit { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 11px 14px; font-family: var(--font); font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity .15s, transform .1s; }
+  .lead-submit:hover { opacity: .88; }
+  .lead-submit:active { transform: scale(.98); }
+  .lead-submit:disabled { opacity: .45; cursor: not-allowed; }
+  .lead-note { margin-top: 12px; font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .lead-toggle { margin-top: 14px; padding: 0; background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; text-align: left; }
+  .lead-toggle:hover { color: var(--text); text-decoration: underline; }
 
   /* ── AI Vision sidebar ── */
   .vpane { position: relative; }
@@ -298,6 +326,14 @@
   }
   .size-btn:hover { background: var(--text); transform: scale(1.1); }
   .size-btn.active { background: var(--accent); }
+
+  @media (max-width: 880px) {
+    .main { grid-template-columns: 1fr; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+    .lead-modal { align-items: flex-end; padding: 20px; }
+    .lead-modal-shell { width: 100%; }
+    .lead-modal-card { padding: 24px 20px; }
+  }
 </style>
 </head>
 <body>
@@ -334,7 +370,15 @@
           <option value="120">2 hours</option>
         </select>
       </div>
-      <button class="btn-gen" id="createBtn" onclick="createSession()">Generate link</button>
+      <button class="btn-gen" id="createBtn" onclick="handleGenerateClick()">Generate link</button>
+      <div class="usage-indicator" id="usageIndicator">
+        <div class="usage-label">Free sessions</div>
+        <div class="usage-text" id="usageText">0 / 5 sessions used this month</div>
+      </div>
+      <div class="upgrade-card" id="upgradePrompt">
+        <div class="upgrade-msg">You've used all 5 free sessions this month. Upgrade to Pro for unlimited.</div>
+        <a class="upgrade-btn" href="/#pricing">Upgrade — $19/mo</a>
+      </div>
 
       <div class="sess-card" id="sessCard">
         <div class="sess-url" id="sessUrl"></div>
@@ -520,15 +564,214 @@
   </section>
 </div>
 
+<div class="lead-modal" id="leadModal" aria-hidden="true">
+  <div class="lead-modal-shell">
+    <div class="lead-modal-card" id="leadModalCard">
+      <div class="lead-modal-eyebrow">Free sessions</div>
+      <h2 class="lead-modal-title" id="leadModalTitle">One more step</h2>
+      <p class="lead-modal-subtitle" id="leadModalSubtitle">5 free sessions/month, no credit card.</p>
+      <form class="lead-form" id="leadForm" onsubmit="submitLead(event)">
+        <input type="email" id="leadEmail" placeholder="Enter your email" autocomplete="email" inputmode="email">
+        <button class="lead-submit" id="leadSubmitBtn" type="submit">Unlock free sessions</button>
+      </form>
+      <div class="lead-note" id="leadNote">5 sessions/month free. No credit card.</div>
+      <button class="lead-toggle" id="leadToggleBtn" type="button" onclick="toggleLeadMode()">Already have an account? Sign in</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 const WS_BASE = location.protocol==='https:'?'wss://'+location.host:'ws://'+location.host;
+const MONTHLY_FREE_LIMIT = 5;
+const LEAD_STORAGE_KEY = 'goshowmeLead';
+const FREE_USED_KEY = 'freeUsed';
 // Fallback used only if /api/ice-servers fetch fails.
 const STUN_FALLBACK = [{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
 
 let ws=null,pc=null,activeToken=null,activeSession=null,sessStart=null,durInt=null,ttlInt=null,liveSessions=[];
 let _iceServers=null;
+let leadState=loadLeadState();
+let leadModalMode='signup';
+let leadModalTimer=null;
+let pendingCreateAfterLead=false;
+let promptForLeadAfterFreeSession=false;
+
+function normalizeEmail(email){return String(email||'').trim().toLowerCase();}
+function isValidEmail(email){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);}
+function loadLeadState(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(LEAD_STORAGE_KEY)||'{}');
+    return {
+      email:normalizeEmail(raw.email),
+      sessionsUsed:Math.max(0,Number(raw.sessionsUsed)||0),
+    };
+  }catch{
+    return {email:'',sessionsUsed:0};
+  }
+}
+function saveLeadState(){
+  try{
+    if(leadState.email)localStorage.setItem(LEAD_STORAGE_KEY,JSON.stringify(leadState));
+    else localStorage.removeItem(LEAD_STORAGE_KEY);
+  }catch{}
+}
+function setLeadState(next){
+  leadState={
+    email:normalizeEmail(next.email),
+    sessionsUsed:Math.max(0,Number(next.sessionsUsed)||0),
+  };
+  saveLeadState();
+  updateLeadUI();
+}
+function hasFreeSessionBeenUsed(){
+  try{return localStorage.getItem(FREE_USED_KEY)==='true';}
+  catch{return false;}
+}
+function markFreeSessionUsed(){
+  try{localStorage.setItem(FREE_USED_KEY,'true');}catch{}
+}
+function setCreateButton(text,disabled){
+  const btn=document.getElementById('createBtn');
+  btn.textContent=text;
+  btn.disabled=disabled;
+}
+function updateLeadUI(){
+  const usage=document.getElementById('usageIndicator');
+  const usageText=document.getElementById('usageText');
+  const upgrade=document.getElementById('upgradePrompt');
+  const createBtn=document.getElementById('createBtn');
+  const hasLead=!!leadState.email;
+  const atLimit=hasLead&&leadState.sessionsUsed>=MONTHLY_FREE_LIMIT;
+
+  usage.classList.toggle('on',hasLead);
+  usageText.textContent=`${leadState.sessionsUsed} / ${MONTHLY_FREE_LIMIT} sessions used this month`;
+  upgrade.classList.toggle('on',atLimit);
+  createBtn.classList.toggle('hidden',atLimit);
+
+  if(atLimit){
+    createBtn.disabled=false;
+    createBtn.textContent='Generate link';
+  }else if(!createBtn.disabled){
+    createBtn.textContent='Generate link';
+  }
+}
+function focusLeadInput(){
+  requestAnimationFrame(()=>{
+    const input=document.getElementById('leadEmail');
+    input.focus();
+    input.select();
+  });
+}
+function setLeadModalMode(mode,{animate=true}={}){
+  const card=document.getElementById('leadModalCard');
+  const apply=()=>{
+    leadModalMode=mode;
+    const signin=mode==='signin';
+    document.getElementById('leadModalTitle').textContent=signin?'Welcome back':'One more step';
+    document.getElementById('leadModalSubtitle').textContent=signin?'Enter your email to restore your sessions.':'5 free sessions/month, no credit card.';
+    document.getElementById('leadSubmitBtn').textContent=signin?'Sign in':'Unlock free sessions';
+    document.getElementById('leadNote').textContent=signin?'No password or verification needed.':'5 sessions/month free. No credit card.';
+    document.getElementById('leadToggleBtn').textContent=signin?'New here? Get 5 free sessions':'Already have an account? Sign in';
+    const input=document.getElementById('leadEmail');
+    if(!input.value&&leadState.email)input.value=leadState.email;
+    if(document.getElementById('leadModal').classList.contains('on')){
+      requestAnimationFrame(()=>card.classList.add('is-visible'));
+    }
+    focusLeadInput();
+  };
+
+  clearTimeout(leadModalTimer);
+  if(animate){
+    card.classList.remove('is-visible');
+    leadModalTimer=setTimeout(apply,150);
+  }else{
+    apply();
+  }
+}
+function openLeadModal(mode='signup'){
+  const modal=document.getElementById('leadModal');
+  modal.classList.add('on');
+  modal.setAttribute('aria-hidden','false');
+  document.body.classList.add('modal-open');
+  setLeadModalMode(mode,{animate:false});
+}
+function closeLeadModal(){
+  const modal=document.getElementById('leadModal');
+  const card=document.getElementById('leadModalCard');
+  clearTimeout(leadModalTimer);
+  card.classList.remove('is-visible');
+  document.body.classList.remove('modal-open');
+  setTimeout(()=>{
+    modal.classList.remove('on');
+    modal.setAttribute('aria-hidden','true');
+  },150);
+}
+function toggleLeadMode(){
+  setLeadModalMode(leadModalMode==='signup'?'signin':'signup');
+}
+async function refreshLeadState(){
+  if(!leadState.email){
+    updateLeadUI();
+    return;
+  }
+  try{
+    const res=await fetch(`/api/lead/${encodeURIComponent(leadState.email)}`);
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.error||'Failed to load sessions');
+    setLeadState({email:data.email||leadState.email,sessionsUsed:data.sessionsUsed});
+  }catch{
+    updateLeadUI();
+  }
+}
+async function consumeLeadSession(email){
+  const res=await fetch('/api/lead/session',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email}),
+  });
+  const data=await res.json();
+  if(!res.ok)throw new Error(data.error||'Failed to check session allowance');
+  return data;
+}
+async function submitLead(event){
+  event.preventDefault();
+  const input=document.getElementById('leadEmail');
+  const email=normalizeEmail(input.value);
+  const submitBtn=document.getElementById('leadSubmitBtn');
+  const idleText=leadModalMode==='signin'?'Sign in':'Unlock free sessions';
+  if(!isValidEmail(email)){
+    toast('Enter a valid email');
+    focusLeadInput();
+    return;
+  }
+
+  submitBtn.disabled=true;
+  submitBtn.textContent=leadModalMode==='signin'?'Signing in…':'Unlocking…';
+  try{
+    const res=await fetch('/api/lead',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email}),
+    });
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.error||'Could not save email');
+
+    const shouldCreate=pendingCreateAfterLead;
+    pendingCreateAfterLead=false;
+    promptForLeadAfterFreeSession=false;
+    setLeadState({email:data.email||email,sessionsUsed:data.sessionsUsed});
+    closeLeadModal();
+    toast(leadModalMode==='signin'?'Sessions restored':'Free sessions unlocked');
+    if(shouldCreate)await handleGenerateClick();
+  }catch(err){
+    toast(err.message||'Could not save email');
+  }finally{
+    submitBtn.disabled=false;
+    submitBtn.textContent=idleText;
+  }
+}
 async function getIceServers(){
   if(_iceServers)return _iceServers;
   try{
@@ -616,19 +859,75 @@ function tearPeer(){
   document.getElementById('aiSidebar').classList.remove('open');
 }
 
-async function createSession(){
+async function handleGenerateClick(){
+  if(leadState.email){
+    setCreateButton('Checking…',true);
+    try{
+      const usage=await consumeLeadSession(leadState.email);
+      setLeadState({email:usage.email||leadState.email,sessionsUsed:usage.sessionsUsed});
+      if(!usage.allowed){
+        toast(`You've used all ${MONTHLY_FREE_LIMIT} free sessions this month`);
+        return;
+      }
+      setCreateButton('Creating…',true);
+      await createSession({email:leadState.email,preserveButtonState:true});
+    }catch(err){
+      toast(err.message||'Could not verify session allowance');
+    }finally{
+      if(!document.getElementById('createBtn').classList.contains('hidden')){
+        setCreateButton('Generate link',false);
+      }
+    }
+    return;
+  }
+
+  if(hasFreeSessionBeenUsed()){
+    pendingCreateAfterLead=true;
+    openLeadModal('signup');
+    return;
+  }
+
+  const created=await createSession();
+  if(created){
+    markFreeSessionUsed();
+    promptForLeadAfterFreeSession=true;
+  }
+}
+
+async function createSession(options={}){
   const label=document.getElementById('sessionLabel').value.trim()||'Support session';
   const ttl=parseInt(document.getElementById('ttlSelect').value);
-  const btn=document.getElementById('createBtn');
-  btn.disabled=true;btn.textContent='Creating…';
+  if(!options.preserveButtonState)setCreateButton('Creating…',true);
   try{
-    const res=await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label,ttl})});
+    const payload={label,ttl};
+    if(options.email||leadState.email)payload.email=options.email||leadState.email;
+    const res=await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const data=await res.json();
+    if(!res.ok){
+      if(data.code==='LEAD_REQUIRED'){
+        markFreeSessionUsed();
+        pendingCreateAfterLead=true;
+        openLeadModal('signup');
+        toast('Enter your email to continue');
+        return false;
+      }
+      if(data.code==='LIMIT_REACHED'){
+        setLeadState({email:data.email||leadState.email,sessionsUsed:data.sessionsUsed});
+        toast(`You've used all ${MONTHLY_FREE_LIMIT} free sessions this month`);
+        return false;
+      }
+      throw new Error(data.error||'Failed to create session');
+    }
     const sess={token:data.token,label,url:data.url,expiresAt:data.expiresAt,ttlMins:ttl};
     liveSessions.unshift(sess);
     selectSess(sess); renderList(); showCard(sess);
-  }catch{toast('Failed to create session');}
-  finally{btn.disabled=false;btn.textContent='Generate link';}
+    return true;
+  }catch(err){
+    toast(err.message||'Failed to create session');
+    return false;
+  }finally{
+    if(!options.preserveButtonState)setCreateButton('Generate link',false);
+  }
 }
 
 function selectSess(sess){
@@ -656,6 +955,10 @@ function tearSession(){
   document.getElementById('waitTitle').textContent='Select or create a session';
   document.getElementById('waitSub').textContent='Generate a link and send it to your user. Their camera will appear here.';
   liveBadge(false);renderList();
+  if(promptForLeadAfterFreeSession&&!leadState.email){
+    promptForLeadAfterFreeSession=false;
+    openLeadModal('signup');
+  }
 }
 
 function showCard(sess){
@@ -1092,6 +1395,8 @@ function setAIBtns(disabled) {
   document.getElementById('aiBtn').classList.toggle('busy', disabled);
 }
 
+updateLeadUI();
+refreshLeadState();
 connectWS();
 </script>
 </body>

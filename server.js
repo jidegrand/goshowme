@@ -8,11 +8,16 @@ const { WebSocketServer } = require('ws');
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const TOKEN_TTL_MS = 30 * 60 * 1000;
+const MONTHLY_FREE_LIMIT = 5;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 
 // In-memory token store (use Redis in production)
 const sessions = new Map();
 // token -> { createdAt, ttl, techWs, userWs, used, expired }
+const leads = new Map();
+// email -> { sessionsUsed, firstSeen, lastSeen }
+const anonymousSessionCounts = new Map();
+// ip -> count
 
 function generateToken() {
   return crypto.randomBytes(16).toString('hex');
@@ -50,6 +55,74 @@ function safeSend(ws, data) {
   try {
     if (ws && ws.readyState === 1) ws.send(JSON.stringify(data));
   } catch (_) {}
+}
+
+function writeJson(res, statusCode, payload, headers = {}) {
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    ...headers,
+  });
+  res.end(JSON.stringify(payload));
+}
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.trim()) {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.socket.remoteAddress || 'unknown';
+}
+
+function isSameMonth(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+}
+
+function syncLeadUsage(lead) {
+  const now = new Date();
+  if (lead.lastSeen) {
+    const lastSeen = new Date(lead.lastSeen);
+    if (!isSameMonth(lastSeen, now)) {
+      lead.sessionsUsed = 0;
+    }
+  }
+  lead.lastSeen = now.toISOString();
+  return lead;
+}
+
+function getOrCreateLead(email) {
+  const normalized = normalizeEmail(email);
+  let lead = leads.get(normalized);
+  if (!lead) {
+    const now = new Date().toISOString();
+    lead = {
+      sessionsUsed: 0,
+      firstSeen: now,
+      lastSeen: now,
+    };
+    leads.set(normalized, lead);
+    return { email: normalized, lead };
+  }
+  syncLeadUsage(lead);
+  return { email: normalized, lead };
+}
+
+function getLeadSnapshot(email, lead) {
+  return {
+    email,
+    sessionsUsed: lead ? lead.sessionsUsed : 0,
+    limit: MONTHLY_FREE_LIMIT,
+    firstSeen: lead ? lead.firstSeen : null,
+    lastSeen: lead ? lead.lastSeen : null,
+  };
 }
 
 // ── TURN credential minting ──────────────────────────────────────────────────
@@ -163,19 +236,144 @@ const httpServer = http.createServer((req, res) => {
     let body = '';
     req.on('data', d => (body += d));
     req.on('end', () => {
-      const { ttl, label } = JSON.parse(body || '{}');
+      let parsed;
+      try {
+        parsed = JSON.parse(body || '{}');
+      } catch {
+        return writeJson(res, 400, { error: 'Invalid JSON' });
+      }
+
+      const { ttl, label } = parsed;
+      const email = normalizeEmail(parsed.email);
+      if (email && !isValidEmail(email)) {
+        return writeJson(res, 400, { error: 'A valid email is required.' });
+      }
+
+      if (email) {
+        const lead = leads.get(email);
+        if (lead) {
+          syncLeadUsage(lead);
+          if (lead.sessionsUsed >= MONTHLY_FREE_LIMIT) {
+            return writeJson(res, 403, {
+              error: 'Free session limit reached.',
+              code: 'LIMIT_REACHED',
+              ...getLeadSnapshot(email, lead),
+            });
+          }
+        }
+      } else {
+        const ip = getClientIp(req);
+        const anonymousCount = anonymousSessionCounts.get(ip) || 0;
+        if (anonymousCount >= 1) {
+          return writeJson(res, 403, {
+            error: 'Email required after your free session.',
+            code: 'LEAD_REQUIRED',
+            limit: MONTHLY_FREE_LIMIT,
+          });
+        }
+        anonymousSessionCounts.set(ip, anonymousCount + 1);
+      }
+
       const session = createSession(ttl ? Number(ttl) * 60 * 1000 : TOKEN_TTL_MS);
       session.label = label || 'Unnamed session';
       const proto = req.headers['x-forwarded-proto'] || 'http';
       const host = req.headers['x-forwarded-host'] || req.headers.host;
       const joinBase = `${proto}://${host}`;
-      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-      res.end(JSON.stringify({
+      writeJson(res, 200, {
         token: session.token,
         url: `${joinBase}/join/${session.token}`,
         expiresAt: Date.now() + session.ttl,
-      }));
+      });
     });
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/lead') {
+    let body = '';
+    req.on('data', d => (body += d));
+    req.on('end', () => {
+      let parsed;
+      try {
+        parsed = JSON.parse(body || '{}');
+      } catch {
+        return writeJson(res, 400, { error: 'Invalid JSON' });
+      }
+
+      const email = normalizeEmail(parsed.email);
+      if (!isValidEmail(email)) {
+        return writeJson(res, 400, { error: 'A valid email is required.' });
+      }
+
+      const leadState = getOrCreateLead(email);
+      writeJson(res, 200, getLeadSnapshot(leadState.email, leadState.lead));
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/lead/session') {
+    let body = '';
+    req.on('data', d => (body += d));
+    req.on('end', () => {
+      let parsed;
+      try {
+        parsed = JSON.parse(body || '{}');
+      } catch {
+        return writeJson(res, 400, { error: 'Invalid JSON' });
+      }
+
+      const email = normalizeEmail(parsed.email);
+      if (!isValidEmail(email)) {
+        return writeJson(res, 400, { error: 'A valid email is required.' });
+      }
+
+      const leadState = getOrCreateLead(email);
+      if (leadState.lead.sessionsUsed >= MONTHLY_FREE_LIMIT) {
+        return writeJson(res, 200, {
+          allowed: false,
+          ...getLeadSnapshot(leadState.email, leadState.lead),
+        });
+      }
+
+      leadState.lead.sessionsUsed += 1;
+      leadState.lead.lastSeen = new Date().toISOString();
+
+      writeJson(res, 200, {
+        allowed: true,
+        ...getLeadSnapshot(leadState.email, leadState.lead),
+      });
+    });
+    return;
+  }
+
+  // ADMIN: lead export endpoint. No auth yet.
+  if (req.method === 'GET' && url.pathname === '/api/leads/export') {
+    const exportedLeads = [];
+    for (const [email, lead] of leads.entries()) {
+      exportedLeads.push({
+        email,
+        sessionsUsed: lead.sessionsUsed,
+        firstSeen: lead.firstSeen,
+        lastSeen: lead.lastSeen,
+      });
+    }
+    writeJson(res, 200, exportedLeads);
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname.startsWith('/api/lead/')) {
+    const rawEmail = url.pathname.slice('/api/lead/'.length);
+    const email = normalizeEmail(decodeURIComponent(rawEmail));
+    if (!isValidEmail(email)) {
+      return writeJson(res, 400, { error: 'A valid email is required.' });
+    }
+
+    const lead = leads.get(email);
+    if (!lead) {
+      return writeJson(res, 200, getLeadSnapshot(email, null));
+    }
+
+    syncLeadUsage(lead);
+    writeJson(res, 200, getLeadSnapshot(email, lead));
     return;
   }
 
@@ -233,22 +431,20 @@ const httpServer = http.createServer((req, res) => {
   if (req.method === 'GET' && url.pathname.startsWith('/api/session/')) {
     const token = url.pathname.split('/')[3];
     const s = sessions.get(token);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    if (!s) return res.end(JSON.stringify({ valid: false }));
-    res.end(JSON.stringify({
+    if (!s) return writeJson(res, 200, { valid: false });
+    writeJson(res, 200, {
       valid: true,
       label: s.label,
       techOnline: s.techAlive,
       expiresAt: s.createdAt + s.ttl,
-    }));
+    });
     return;
   }
 
   // REST: AI vision proxy — keeps API key server-side
   if (req.method === 'POST' && url.pathname === '/api/ai/analyze') {
     if (!ANTHROPIC_API_KEY) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ error: 'ANTHROPIC_API_KEY not set on server.' }));
+      return writeJson(res, 500, { error: 'ANTHROPIC_API_KEY not set on server.' });
     }
 
     let body = '';
@@ -257,16 +453,14 @@ const httpServer = http.createServer((req, res) => {
       // Validate request has expected shape — image + prompt only
       let parsed;
       try { parsed = JSON.parse(body); } catch {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ error: 'Invalid JSON' }));
+        return writeJson(res, 400, { error: 'Invalid JSON' });
       }
 
       const { model, max_tokens, messages } = parsed;
 
       // Safety: only allow vision calls with exactly one user message
       if (!messages || messages.length !== 1 || messages[0].role !== 'user') {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ error: 'Invalid message shape' }));
+        return writeJson(res, 400, { error: 'Invalid message shape' });
       }
 
       const payload = JSON.stringify({ model, max_tokens, messages });
@@ -293,8 +487,7 @@ const httpServer = http.createServer((req, res) => {
       });
 
       proxyReq.on('error', err => {
-        res.writeHead(502, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: `Upstream error: ${err.message}` }));
+        writeJson(res, 502, { error: `Upstream error: ${err.message}` });
       });
 
       proxyReq.write(payload);
