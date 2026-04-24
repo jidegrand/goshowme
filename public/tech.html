@@ -55,8 +55,8 @@
   .sec-lbl { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; color: var(--dim); text-transform: uppercase; margin-bottom: 13px; }
   label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; font-family: var(--mono); }
   .frow { margin-bottom: 10px; }
-  input[type=text], input[type=email], select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 8px 11px; font-family: var(--font); font-size: 13px; color: var(--text); outline: none; transition: border-color .15s; }
-  input[type=text]:focus, input[type=email]:focus, select:focus { border-color: var(--accent); }
+  input[type=text], input[type=email], input[type=password], select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 8px 11px; font-family: var(--font); font-size: 13px; color: var(--text); outline: none; transition: border-color .15s; }
+  input[type=text]:focus, input[type=email]:focus, input[type=password]:focus, select:focus { border-color: var(--accent); }
   input::placeholder { color: var(--dim); }
   select option { background: var(--surface2); }
   .btn-gen { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 10px; font-family: var(--font); font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity .15s, transform .1s; letter-spacing: -.01em; }
@@ -149,11 +149,17 @@
   .lead-modal-title { font-size: 24px; line-height: 1.1; letter-spacing: -.04em; }
   .lead-modal-subtitle { margin-top: 10px; font-size: 13px; line-height: 1.65; color: var(--muted); }
   .lead-form { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .lead-field[hidden] { display: none; }
+  .lead-email-summary { display: none; padding: 10px 12px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); }
+  .lead-email-summary.on { display: block; }
+  .lead-email-label { font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+  .lead-email-value { margin-top: 4px; font-size: 13px; font-weight: 600; }
   .lead-submit { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 11px 14px; font-family: var(--font); font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity .15s, transform .1s; }
   .lead-submit:hover { opacity: .88; }
   .lead-submit:active { transform: scale(.98); }
   .lead-submit:disabled { opacity: .45; cursor: not-allowed; }
   .lead-note { margin-top: 12px; font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .lead-inline-note { font-size: 11px; line-height: 1.55; color: var(--muted); }
   .lead-toggle { margin-top: 14px; padding: 0; background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; text-align: left; }
   .lead-toggle:hover { color: var(--text); text-decoration: underline; }
 
@@ -351,7 +357,7 @@
   </div>
 </header>
 
-<div class="tagline">No install. No account. Just show me.</div>
+<div class="tagline">No install for the customer. Just show me.</div>
 
 <div class="main">
   <aside class="sidebar">
@@ -571,8 +577,21 @@
       <h2 class="lead-modal-title" id="leadModalTitle">One more step</h2>
       <p class="lead-modal-subtitle" id="leadModalSubtitle">5 free sessions/month, no credit card.</p>
       <form class="lead-form" id="leadForm" onsubmit="submitLead(event)">
-        <input type="email" id="leadEmail" placeholder="Enter your email" autocomplete="email" inputmode="email">
-        <button class="lead-submit" id="leadSubmitBtn" type="submit">Unlock free sessions</button>
+        <div class="lead-field" id="leadEmailField">
+          <input type="email" id="leadEmail" placeholder="Enter your email" autocomplete="email" inputmode="email">
+        </div>
+        <div class="lead-email-summary" id="leadEmailSummary">
+          <div class="lead-email-label">Account email</div>
+          <div class="lead-email-value" id="leadEmailValue">—</div>
+        </div>
+        <div class="lead-field" id="leadNameField" hidden>
+          <input type="text" id="leadName" placeholder="Your name" autocomplete="name">
+        </div>
+        <div class="lead-field" id="leadPasswordField" hidden>
+          <input type="password" id="leadPassword" placeholder="Create a password" autocomplete="new-password">
+        </div>
+        <div class="lead-inline-note" id="leadInlineNote" hidden>Password must be at least 8 characters.</div>
+        <button class="lead-submit" id="leadSubmitBtn" type="submit">Continue</button>
       </form>
       <div class="lead-note" id="leadNote">5 sessions/month free. No credit card.</div>
       <button class="lead-toggle" id="leadToggleBtn" type="button" onclick="toggleLeadMode()">Already have an account? Sign in</button>
@@ -585,45 +604,65 @@
 <script>
 const WS_BASE = location.protocol==='https:'?'wss://'+location.host:'ws://'+location.host;
 const MONTHLY_FREE_LIMIT = 5;
-const LEAD_STORAGE_KEY = 'goshowmeLead';
+const AUTH_STORAGE_KEY = 'goshowmeAuth';
+const LEGACY_LEAD_STORAGE_KEY = 'goshowmeLead';
 const FREE_USED_KEY = 'freeUsed';
 // Fallback used only if /api/ice-servers fetch fails.
 const STUN_FALLBACK = [{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
 
 let ws=null,pc=null,activeToken=null,activeSession=null,sessStart=null,durInt=null,ttlInt=null,liveSessions=[];
 let _iceServers=null;
-let leadState=loadLeadState();
-let leadModalMode='signup';
+let authState=loadAuthState();
+let leadModalMode='signup-email';
 let leadModalTimer=null;
 let pendingCreateAfterLead=false;
 let promptForLeadAfterFreeSession=false;
+let pendingSignupEmail='';
 
 function normalizeEmail(email){return String(email||'').trim().toLowerCase();}
 function isValidEmail(email){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);}
-function loadLeadState(){
+function normalizeName(name){return String(name||'').trim().replace(/\s+/g,' ');}
+function isValidName(name){return normalizeName(name).length>=2;}
+function loadAuthState(){
   try{
-    const raw=JSON.parse(localStorage.getItem(LEAD_STORAGE_KEY)||'{}');
+    const raw=JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY)||localStorage.getItem(LEGACY_LEAD_STORAGE_KEY)||'{}');
     return {
       email:normalizeEmail(raw.email),
+      name:normalizeName(raw.name),
       sessionsUsed:Math.max(0,Number(raw.sessionsUsed)||0),
+      authToken:String(raw.authToken||'').trim(),
     };
   }catch{
-    return {email:'',sessionsUsed:0};
+    return {email:'',name:'',sessionsUsed:0,authToken:''};
   }
 }
-function saveLeadState(){
+function saveAuthState(){
   try{
-    if(leadState.email)localStorage.setItem(LEAD_STORAGE_KEY,JSON.stringify(leadState));
-    else localStorage.removeItem(LEAD_STORAGE_KEY);
+    if(authState.email&&authState.authToken)localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify(authState));
+    else localStorage.removeItem(AUTH_STORAGE_KEY);
+    localStorage.removeItem(LEGACY_LEAD_STORAGE_KEY);
   }catch{}
 }
-function setLeadState(next){
-  leadState={
+function setAuthState(next,authToken=authState.authToken){
+  authState={
     email:normalizeEmail(next.email),
+    name:normalizeName(next.name),
     sessionsUsed:Math.max(0,Number(next.sessionsUsed)||0),
+    authToken:String(authToken||'').trim(),
   };
-  saveLeadState();
+  saveAuthState();
   updateLeadUI();
+}
+function clearAuthState(){
+  authState={email:'',name:'',sessionsUsed:0,authToken:''};
+  saveAuthState();
+  updateLeadUI();
+}
+function isSignedIn(){
+  return !!authState.email&&!!authState.authToken;
+}
+function authHeaders(token=authState.authToken){
+  return token?{'Authorization':`Bearer ${token}`}:{};
 }
 function hasFreeSessionBeenUsed(){
   try{return localStorage.getItem(FREE_USED_KEY)==='true';}
@@ -642,11 +681,11 @@ function updateLeadUI(){
   const usageText=document.getElementById('usageText');
   const upgrade=document.getElementById('upgradePrompt');
   const createBtn=document.getElementById('createBtn');
-  const hasLead=!!leadState.email;
-  const atLimit=hasLead&&leadState.sessionsUsed>=MONTHLY_FREE_LIMIT;
+  const signedIn=isSignedIn();
+  const atLimit=signedIn&&authState.sessionsUsed>=MONTHLY_FREE_LIMIT;
 
-  usage.classList.toggle('on',hasLead);
-  usageText.textContent=`${leadState.sessionsUsed} / ${MONTHLY_FREE_LIMIT} sessions used this month`;
+  usage.classList.toggle('on',signedIn);
+  usageText.textContent=`${authState.sessionsUsed} / ${MONTHLY_FREE_LIMIT} sessions used this month`;
   upgrade.classList.toggle('on',atLimit);
   createBtn.classList.toggle('hidden',atLimit);
 
@@ -659,7 +698,11 @@ function updateLeadUI(){
 }
 function focusLeadInput(){
   requestAnimationFrame(()=>{
-    const input=document.getElementById('leadEmail');
+    const input=leadModalMode==='signup-details'
+      ? document.getElementById('leadName')
+      : leadModalMode==='signin'&&document.getElementById('leadEmail').value
+        ? document.getElementById('leadPassword')
+        : document.getElementById('leadEmail');
     input.focus();
     input.select();
   });
@@ -668,14 +711,60 @@ function setLeadModalMode(mode,{animate=true}={}){
   const card=document.getElementById('leadModalCard');
   const apply=()=>{
     leadModalMode=mode;
-    const signin=mode==='signin';
-    document.getElementById('leadModalTitle').textContent=signin?'Welcome back':'One more step';
-    document.getElementById('leadModalSubtitle').textContent=signin?'Enter your email to restore your sessions.':'5 free sessions/month, no credit card.';
-    document.getElementById('leadSubmitBtn').textContent=signin?'Sign in':'Unlock free sessions';
-    document.getElementById('leadNote').textContent=signin?'No password or verification needed.':'5 sessions/month free. No credit card.';
-    document.getElementById('leadToggleBtn').textContent=signin?'New here? Get 5 free sessions':'Already have an account? Sign in';
-    const input=document.getElementById('leadEmail');
-    if(!input.value&&leadState.email)input.value=leadState.email;
+    const emailField=document.getElementById('leadEmailField');
+    const emailInput=document.getElementById('leadEmail');
+    const emailSummary=document.getElementById('leadEmailSummary');
+    const emailValue=document.getElementById('leadEmailValue');
+    const nameField=document.getElementById('leadNameField');
+    const passwordField=document.getElementById('leadPasswordField');
+    const passwordInput=document.getElementById('leadPassword');
+    const inlineNote=document.getElementById('leadInlineNote');
+    const submitBtn=document.getElementById('leadSubmitBtn');
+    const note=document.getElementById('leadNote');
+    const toggleBtn=document.getElementById('leadToggleBtn');
+
+    if(!emailInput.value&&authState.email)emailInput.value=authState.email;
+    if(mode==='signup-email'){
+      document.getElementById('leadModalTitle').textContent='One more step';
+      document.getElementById('leadModalSubtitle').textContent='Enter your email to unlock 5 free sessions each month.';
+      submitBtn.textContent='Continue';
+      note.textContent='5 sessions/month free. No credit card.';
+      toggleBtn.textContent='Already have an account? Sign in';
+      emailField.hidden=false;
+      emailSummary.classList.remove('on');
+      nameField.hidden=true;
+      passwordField.hidden=true;
+      inlineNote.hidden=true;
+      passwordInput.value='';
+    }else if(mode==='signup-details'){
+      document.getElementById('leadModalTitle').textContent='Create your account';
+      document.getElementById('leadModalSubtitle').textContent='Confirm your name and set a password to save your sessions.';
+      submitBtn.textContent='Create account';
+      note.textContent='You only need to do this once on this device.';
+      toggleBtn.textContent='Already have an account? Sign in';
+      emailField.hidden=true;
+      emailValue.textContent=pendingSignupEmail||emailInput.value||'—';
+      emailSummary.classList.add('on');
+      nameField.hidden=false;
+      passwordField.hidden=false;
+      inlineNote.hidden=false;
+      passwordInput.placeholder='Create a password';
+      passwordInput.autocomplete='new-password';
+    }else{
+      document.getElementById('leadModalTitle').textContent='Welcome back';
+      document.getElementById('leadModalSubtitle').textContent='Sign in to restore your sessions.';
+      submitBtn.textContent='Sign in';
+      note.textContent='Use the email and password you set when you unlocked your free sessions.';
+      toggleBtn.textContent='New here? Get 5 free sessions';
+      emailField.hidden=false;
+      emailSummary.classList.remove('on');
+      nameField.hidden=true;
+      passwordField.hidden=false;
+      inlineNote.hidden=true;
+      passwordInput.placeholder='Enter your password';
+      passwordInput.autocomplete='current-password';
+      if(!emailInput.value&&pendingSignupEmail)emailInput.value=pendingSignupEmail;
+    }
     if(document.getElementById('leadModal').classList.contains('on')){
       requestAnimationFrame(()=>card.classList.add('is-visible'));
     }
@@ -690,7 +779,7 @@ function setLeadModalMode(mode,{animate=true}={}){
     apply();
   }
 }
-function openLeadModal(mode='signup'){
+function openLeadModal(mode='signup-email'){
   const modal=document.getElementById('leadModal');
   modal.classList.add('on');
   modal.setAttribute('aria-hidden','false');
@@ -709,67 +798,134 @@ function closeLeadModal(){
   },150);
 }
 function toggleLeadMode(){
-  setLeadModalMode(leadModalMode==='signup'?'signin':'signup');
+  document.getElementById('leadPassword').value='';
+  if(leadModalMode==='signin')setLeadModalMode('signup-email');
+  else setLeadModalMode('signin');
 }
-async function refreshLeadState(){
-  if(!leadState.email){
+async function refreshAuthState(){
+  if(!isSignedIn()){
     updateLeadUI();
     return;
   }
   try{
-    const res=await fetch(`/api/lead/${encodeURIComponent(leadState.email)}`);
+    const res=await fetch('/api/auth/me',{headers:authHeaders()});
     const data=await res.json();
-    if(!res.ok)throw new Error(data.error||'Failed to load sessions');
-    setLeadState({email:data.email||leadState.email,sessionsUsed:data.sessionsUsed});
+    if(!res.ok)throw new Error(data.error||'Failed to load account');
+    setAuthState(data.user,authState.authToken);
   }catch{
+    clearAuthState();
     updateLeadUI();
   }
 }
-async function consumeLeadSession(email){
+async function consumeLeadSession(authToken){
   const res=await fetch('/api/lead/session',{
     method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({email}),
+    headers:{'Content-Type':'application/json',...authHeaders(authToken)},
+    body:JSON.stringify({authToken}),
   });
   const data=await res.json();
   if(!res.ok)throw new Error(data.error||'Failed to check session allowance');
   return data;
 }
+async function completeAuth(data,successMessage){
+  const shouldCreate=pendingCreateAfterLead;
+  pendingCreateAfterLead=false;
+  promptForLeadAfterFreeSession=false;
+  setAuthState(data.user,data.authToken);
+  pendingSignupEmail='';
+  document.getElementById('leadName').value='';
+  document.getElementById('leadPassword').value='';
+  closeLeadModal();
+  toast(successMessage);
+  if(shouldCreate)await handleGenerateClick();
+}
 async function submitLead(event){
   event.preventDefault();
-  const input=document.getElementById('leadEmail');
-  const email=normalizeEmail(input.value);
+  const emailInput=document.getElementById('leadEmail');
+  const email=normalizeEmail(emailInput.value);
+  const name=normalizeName(document.getElementById('leadName').value);
+  const password=document.getElementById('leadPassword').value;
   const submitBtn=document.getElementById('leadSubmitBtn');
-  const idleText=leadModalMode==='signin'?'Sign in':'Unlock free sessions';
-  if(!isValidEmail(email)){
-    toast('Enter a valid email');
-    focusLeadInput();
-    return;
-  }
 
   submitBtn.disabled=true;
-  submitBtn.textContent=leadModalMode==='signin'?'Signing in…':'Unlocking…';
+  submitBtn.textContent=leadModalMode==='signup-email'?'Checking…':leadModalMode==='signup-details'?'Creating…':'Signing in…';
   try{
-    const res=await fetch('/api/lead',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email}),
-    });
-    const data=await res.json();
-    if(!res.ok)throw new Error(data.error||'Could not save email');
-
-    const shouldCreate=pendingCreateAfterLead;
-    pendingCreateAfterLead=false;
-    promptForLeadAfterFreeSession=false;
-    setLeadState({email:data.email||email,sessionsUsed:data.sessionsUsed});
-    closeLeadModal();
-    toast(leadModalMode==='signin'?'Sessions restored':'Free sessions unlocked');
-    if(shouldCreate)await handleGenerateClick();
+    if(leadModalMode==='signup-email'){
+      if(!isValidEmail(email)){
+        toast('Enter a valid email');
+        focusLeadInput();
+        return;
+      }
+      const res=await fetch('/api/lead',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email}),
+      });
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.error||'Could not save email');
+      pendingSignupEmail=data.email||email;
+      if(data.hasAccount){
+        setLeadModalMode('signin');
+        toast('Account found. Sign in to continue');
+      }else{
+        setLeadModalMode('signup-details');
+      }
+    }else if(leadModalMode==='signup-details'){
+      if(!isValidName(name)){
+        toast('Enter your name');
+        focusLeadInput();
+        return;
+      }
+      if(password.length<8){
+        toast('Password must be at least 8 characters');
+        document.getElementById('leadPassword').focus();
+        return;
+      }
+      const res=await fetch('/api/auth/signup',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email:pendingSignupEmail,name,password}),
+      });
+      const data=await res.json();
+      if(!res.ok){
+        if(data.code==='ACCOUNT_EXISTS'){
+          document.getElementById('leadEmail').value=pendingSignupEmail;
+          setLeadModalMode('signin');
+        }
+        throw new Error(data.error||'Could not create account');
+      }
+      await completeAuth(data,'Account created');
+    }else{
+      if(!isValidEmail(email)){
+        toast('Enter a valid email');
+        focusLeadInput();
+        return;
+      }
+      if(password.length<8){
+        toast('Enter your password');
+        document.getElementById('leadPassword').focus();
+        return;
+      }
+      const res=await fetch('/api/auth/signin',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email,password}),
+      });
+      const data=await res.json();
+      if(!res.ok){
+        if(data.code==='NO_ACCOUNT'){
+          pendingSignupEmail=email;
+          setLeadModalMode('signup-details');
+        }
+        throw new Error(data.error||'Could not sign in');
+      }
+      await completeAuth(data,'Sessions restored');
+    }
   }catch(err){
-    toast(err.message||'Could not save email');
+    toast(err.message||'Could not continue');
   }finally{
     submitBtn.disabled=false;
-    submitBtn.textContent=idleText;
+    submitBtn.textContent=leadModalMode==='signup-email'?'Continue':leadModalMode==='signup-details'?'Create account':'Sign in';
   }
 }
 async function getIceServers(){
@@ -860,18 +1016,23 @@ function tearPeer(){
 }
 
 async function handleGenerateClick(){
-  if(leadState.email){
+  if(isSignedIn()){
     setCreateButton('Checking…',true);
     try{
-      const usage=await consumeLeadSession(leadState.email);
-      setLeadState({email:usage.email||leadState.email,sessionsUsed:usage.sessionsUsed});
+      const usage=await consumeLeadSession(authState.authToken);
+      setAuthState(usage,authState.authToken);
       if(!usage.allowed){
         toast(`You've used all ${MONTHLY_FREE_LIMIT} free sessions this month`);
         return;
       }
       setCreateButton('Creating…',true);
-      await createSession({email:leadState.email,preserveButtonState:true});
+      await createSession({authToken:authState.authToken,sessionGrant:usage.sessionGrant,preserveButtonState:true});
     }catch(err){
+      if(/sign-in expired|sign in again/i.test(err.message||'')){
+        clearAuthState();
+        pendingCreateAfterLead=true;
+        openLeadModal('signin');
+      }
       toast(err.message||'Could not verify session allowance');
     }finally{
       if(!document.getElementById('createBtn').classList.contains('hidden')){
@@ -883,7 +1044,7 @@ async function handleGenerateClick(){
 
   if(hasFreeSessionBeenUsed()){
     pendingCreateAfterLead=true;
-    openLeadModal('signup');
+    openLeadModal('signup-email');
     return;
   }
 
@@ -900,23 +1061,32 @@ async function createSession(options={}){
   if(!options.preserveButtonState)setCreateButton('Creating…',true);
   try{
     const payload={label,ttl};
-    if(options.email||leadState.email)payload.email=options.email||leadState.email;
+    if(options.authToken)payload.authToken=options.authToken;
+    if(options.sessionGrant)payload.sessionGrant=options.sessionGrant;
     const res=await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const data=await res.json();
     if(!res.ok){
       if(data.code==='LEAD_REQUIRED'){
         markFreeSessionUsed();
         pendingCreateAfterLead=true;
-        openLeadModal('signup');
-        toast('Enter your email to continue');
+        openLeadModal('signup-email');
+        toast('Create your account to continue');
         return false;
       }
       if(data.code==='LIMIT_REACHED'){
-        setLeadState({email:data.email||leadState.email,sessionsUsed:data.sessionsUsed});
+        if(isSignedIn())setAuthState(data,authState.authToken);
         toast(`You've used all ${MONTHLY_FREE_LIMIT} free sessions this month`);
         return false;
       }
+      if(data.code==='AUTH_REQUIRED'||data.code==='SESSION_GRANT_REQUIRED'){
+        clearAuthState();
+        pendingCreateAfterLead=true;
+        openLeadModal('signin');
+      }
       throw new Error(data.error||'Failed to create session');
+    }
+    if(options.authToken&&data.email){
+      setAuthState(data,options.authToken);
     }
     const sess={token:data.token,label,url:data.url,expiresAt:data.expiresAt,ttlMins:ttl};
     liveSessions.unshift(sess);
@@ -955,9 +1125,9 @@ function tearSession(){
   document.getElementById('waitTitle').textContent='Select or create a session';
   document.getElementById('waitSub').textContent='Generate a link and send it to your user. Their camera will appear here.';
   liveBadge(false);renderList();
-  if(promptForLeadAfterFreeSession&&!leadState.email){
+  if(promptForLeadAfterFreeSession&&!isSignedIn()){
     promptForLeadAfterFreeSession=false;
-    openLeadModal('signup');
+    openLeadModal('signup-email');
   }
 }
 
@@ -1396,7 +1566,7 @@ function setAIBtns(disabled) {
 }
 
 updateLeadUI();
-refreshLeadState();
+refreshAuthState();
 connectWS();
 </script>
 </body>

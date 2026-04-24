@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GoShowMe — Remote support, finally with eyes.</title>
-<meta name="description" content="Send a link. User taps it. Their camera opens. You guide them live — no install, no account, no friction.">
+<meta name="description" content="Create a free GoShowMe account, send a link, and guide users live from their phone camera with no install on their side.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -33,6 +33,7 @@ html { scroll-behavior: smooth; }
 }
 
 body { font-family: var(--font); background: var(--ink); color: var(--text-dark); overflow-x: hidden; }
+body.modal-open { overflow: hidden; }
 
 /* ─── NAV ─────────────────────────────────────────────────────── */
 nav {
@@ -54,6 +55,14 @@ nav {
 .nav-links { display: flex; align-items: center; gap: 28px; }
 .nav-links a { font-size: 13px; color: var(--text-muted-dark); text-decoration: none; transition: color .15s; }
 .nav-links a:hover { color: var(--text-dark); }
+.nav-actions { display: flex; align-items: center; gap: 12px; }
+.nav-link-btn {
+  background: none; border: none; padding: 0;
+  font-family: var(--font); font-size: 13px; color: var(--text-muted-dark);
+  cursor: pointer; transition: color .15s;
+}
+.nav-link-btn:hover { color: var(--text-dark); }
+.nav-user { font-family: var(--mono); font-size: 11px; color: var(--text-muted-dark); }
 .nav-cta {
   background: var(--orange); color: #fff; border: none;
   border-radius: 8px; padding: 8px 18px;
@@ -154,6 +163,12 @@ nav {
   display: inline-block;
 }
 .btn-ghost:hover { color: var(--text-dark); border-color: rgba(255,255,255,0.2); }
+.btn-ghost-btn { appearance: none; }
+
+.hero-account {
+  margin-top: -36px; margin-bottom: 40px;
+  font-family: var(--mono); font-size: 11px; color: var(--text-muted-dark);
+}
 
 .hero-proof {
   display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -393,6 +408,72 @@ nav {
 .btn-cta-white:hover { opacity: .92; transform: translateY(-1px); }
 .cta-note { margin-top: 16px; font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,.6); letter-spacing: .04em; }
 
+.toast {
+  position: fixed; bottom: 18px; left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  background: var(--ink2); border: 1px solid var(--border-dark);
+  border-radius: 10px; padding: 9px 14px;
+  font-family: var(--mono); font-size: 11px; color: var(--text-dark);
+  opacity: 0; pointer-events: none; z-index: 220;
+  transition: opacity .18s, transform .18s;
+}
+.toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+.auth-modal {
+  position: fixed; inset: 0; z-index: 210;
+  display: none; align-items: center; justify-content: center;
+  padding: 24px; background: rgba(10,11,14,.82); backdrop-filter: blur(6px);
+}
+.auth-modal.on { display: flex; }
+.auth-shell { width: min(100%, 430px); }
+.auth-card {
+  background: var(--ink2); border: 1px solid var(--border-dark);
+  border-radius: 22px; padding: 24px; box-shadow: 0 24px 70px rgba(0,0,0,.45);
+  opacity: 0; transform: translateY(12px); transition: opacity .15s ease, transform .15s ease;
+}
+.auth-card.is-visible { opacity: 1; transform: translateY(0); }
+.auth-eyebrow {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--orange-dim); border: 1px solid rgba(255,79,0,0.2);
+  border-radius: 20px; padding: 5px 12px;
+  font-family: var(--mono); font-size: 10px; color: var(--orange);
+  letter-spacing: .06em; margin-bottom: 14px;
+}
+.auth-title { font-size: 28px; line-height: 1.05; letter-spacing: -.04em; }
+.auth-subtitle { margin-top: 10px; font-size: 14px; line-height: 1.65; color: var(--text-muted-dark); }
+.auth-form { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+.auth-field[hidden] { display: none; }
+.auth-input {
+  width: 100%; background: var(--ink3); border: 1px solid var(--border-dark);
+  border-radius: 10px; padding: 12px 14px; font-family: var(--font);
+  font-size: 14px; color: var(--text-dark); outline: none; transition: border-color .15s;
+}
+.auth-input:focus { border-color: var(--orange); }
+.auth-input::placeholder { color: var(--text-dim-dark); }
+.auth-email-summary {
+  display: none; padding: 11px 13px; border-radius: 12px;
+  background: var(--ink3); border: 1px solid var(--border-dark);
+}
+.auth-email-summary.on { display: block; }
+.auth-email-label { font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim-dark); }
+.auth-email-value { margin-top: 5px; font-size: 14px; font-weight: 600; }
+.auth-inline-note { font-size: 11px; line-height: 1.55; color: var(--text-muted-dark); }
+.auth-submit {
+  width: 100%; background: var(--orange); color: #fff; border: none;
+  border-radius: 12px; padding: 13px 15px; font-family: var(--font);
+  font-size: 14px; font-weight: 800; cursor: pointer; letter-spacing: -.02em;
+  transition: opacity .15s, transform .1s;
+}
+.auth-submit:hover { opacity: .9; }
+.auth-submit:active { transform: scale(.98); }
+.auth-submit:disabled { opacity: .45; cursor: not-allowed; }
+.auth-note { margin-top: 14px; font-family: var(--mono); font-size: 10px; color: var(--text-muted-dark); }
+.auth-toggle {
+  margin-top: 14px; padding: 0; background: none; border: none;
+  color: var(--text-muted-dark); font-family: var(--font); font-size: 12px;
+  cursor: pointer; text-align: left;
+}
+.auth-toggle:hover { color: var(--text-dark); text-decoration: underline; }
+
 /* ─── FOOTER ──────────────────────────────────────────────────── */
 footer {
   background: var(--ink); border-top: 1px solid var(--border-dark);
@@ -412,9 +493,13 @@ footer {
 /* ─── RESPONSIVE ──────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .nav-links { display: none; }
+  .nav-actions { gap: 10px; }
   .mockup-wrap { grid-template-columns: 1fr; gap: 14px; }
   .flow-arrow { display: none; }
   .steps::before { display: none; }
+  .auth-modal { align-items: flex-end; padding: 20px; }
+  .auth-shell { width: 100%; }
+  .auth-card { padding: 24px 20px; }
   footer { flex-direction: column; align-items: flex-start; }
 }
 </style>
@@ -432,7 +517,12 @@ footer {
     <a href="#features">Features</a>
     <a href="#pricing">Pricing</a>
   </div>
-  <a class="nav-cta" href="/dashboard">Start free</a>
+  <div class="nav-actions">
+    <span class="nav-user" id="navUser" hidden></span>
+    <button class="nav-link-btn" id="navSignInBtn" type="button" onclick="openAuthModal('signin')">Sign in</button>
+    <button class="nav-link-btn" id="navSignOutBtn" type="button" onclick="signOut()" hidden>Sign out</button>
+    <a class="nav-cta" id="navPrimaryCta" href="#" onclick="openAuthModal('signup-email'); return false;">Start free</a>
+  </div>
 </nav>
 
 <!-- HERO -->
@@ -441,7 +531,7 @@ footer {
 
   <div class="hero-eyebrow">
     <div class="eyebrow-dot"></div>
-    No install · No account · Just show me
+    No install for the customer · Fast setup for the tech
   </div>
 
   <h1 class="hero-heading">
@@ -455,9 +545,11 @@ footer {
   </p>
 
   <div class="hero-actions">
-    <a class="btn-hero" href="/dashboard">Generate your first link &rarr;</a>
+    <a class="btn-hero" id="heroPrimaryCta" href="#" onclick="openAuthModal('signup-email'); return false;">Create free account &rarr;</a>
+    <button class="btn-ghost btn-ghost-btn" id="heroAuthCta" type="button" onclick="openAuthModal('signin')">Sign in</button>
     <a class="btn-ghost" href="#how">See how it works</a>
   </div>
+  <div class="hero-account" id="heroAccount" hidden></div>
 
   <div class="hero-proof">
     <span>Works on iOS &amp; Android</span>
@@ -660,7 +752,7 @@ footer {
     <div style="text-align:center;margin-bottom:48px;">
       <div class="section-kicker" style="text-align:center;">Pricing</div>
       <h2 class="section-title" style="text-align:center;margin:0 auto 10px;">Simple. No surprises.</h2>
-      <p style="font-size:15px;color:var(--text-muted-light);text-align:center;">Start free. Upgrade when you need more sessions.</p>
+      <p style="font-size:15px;color:var(--text-muted-light);text-align:center;">Create a free account. Upgrade when you need more sessions.</p>
     </div>
     <div class="price-grid">
 
@@ -669,7 +761,7 @@ footer {
         <div class="price-amount">$0</div>
         <div class="price-period">free forever</div>
         <ul class="price-features">
-          <li><div class="check-ico"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>10 sessions / month</li>
+          <li><div class="check-ico"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>5 sessions / month</li>
           <li><div class="check-ico"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Up to 30 min TTL</li>
           <li><div class="check-ico"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Snapshot capture</li>
           <li><div class="check-ico"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>SMS &amp; email share</li>
@@ -733,9 +825,9 @@ footer {
 <!-- CTA -->
 <div class="cta-section">
   <h2 class="cta-title">See the problem.<br>Solve it fast.</h2>
-  <p class="cta-sub">Generate your first session link in 30 seconds. No credit card. No install. No friction.</p>
-  <a class="btn-cta-white" href="/dashboard">Start free — it takes 30 seconds</a>
-  <div class="cta-note">Free forever · 10 sessions/month · No card required</div>
+  <p class="cta-sub">Create your free account, open the dashboard, and generate your first session link in under 30 seconds.</p>
+  <a class="btn-cta-white" id="footerPrimaryCta" href="#" onclick="openAuthModal('signup-email'); return false;">Create free account</a>
+  <div class="cta-note">Free forever · 5 sessions/month · No card required</div>
 </div>
 
 <!-- FOOTER -->
@@ -752,6 +844,349 @@ footer {
   </div>
   <div class="footer-copy">© 2025 GoShowMe · goshowmeapp.com</div>
 </footer>
+
+<div class="auth-modal" id="authModal" aria-hidden="true">
+  <div class="auth-shell">
+    <div class="auth-card" id="authCard">
+      <div class="auth-eyebrow"><div class="eyebrow-dot"></div>GoShowMe account</div>
+      <h2 class="auth-title" id="authTitle">Get started free</h2>
+      <p class="auth-subtitle" id="authSubtitle">Enter your email to unlock 5 free sessions every month.</p>
+      <form class="auth-form" id="authForm" onsubmit="submitAuth(event)">
+        <div class="auth-field" id="authEmailField">
+          <input class="auth-input" type="email" id="authEmail" placeholder="Enter your email" autocomplete="email" inputmode="email">
+        </div>
+        <div class="auth-email-summary" id="authEmailSummary">
+          <div class="auth-email-label">Account email</div>
+          <div class="auth-email-value" id="authEmailValue">—</div>
+        </div>
+        <div class="auth-field" id="authNameField" hidden>
+          <input class="auth-input" type="text" id="authName" placeholder="Your name" autocomplete="name">
+        </div>
+        <div class="auth-field" id="authPasswordField" hidden>
+          <input class="auth-input" type="password" id="authPassword" placeholder="Create a password" autocomplete="new-password">
+        </div>
+        <div class="auth-inline-note" id="authInlineNote" hidden>Password must be at least 8 characters.</div>
+        <button class="auth-submit" id="authSubmitBtn" type="submit">Continue</button>
+      </form>
+      <div class="auth-note" id="authNote">5 sessions/month free. No credit card.</div>
+      <button class="auth-toggle" id="authToggleBtn" type="button" onclick="toggleAuthMode()">Already have an account? Sign in</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const AUTH_STORAGE_KEY='goshowmeAuth';
+const AUTH_MODELS={SIGNUP_EMAIL:'signup-email',SIGNUP_DETAILS:'signup-details',SIGNIN:'signin'};
+let authState=loadAuthState();
+let authMode=AUTH_MODELS.SIGNUP_EMAIL;
+let authTimer=null;
+let pendingSignupEmail='';
+
+function normalizeEmail(email){return String(email||'').trim().toLowerCase();}
+function normalizeName(name){return String(name||'').trim().replace(/\s+/g,' ');}
+function isValidEmail(email){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);}
+function isSignedIn(){return !!authState.email&&!!authState.authToken;}
+function authHeaders(token=authState.authToken){return token?{'Authorization':`Bearer ${token}`}:{ };} 
+function loadAuthState(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY)||'{}');
+    return {
+      email:normalizeEmail(raw.email),
+      name:normalizeName(raw.name),
+      sessionsUsed:Math.max(0,Number(raw.sessionsUsed)||0),
+      authToken:String(raw.authToken||'').trim(),
+    };
+  }catch{
+    return {email:'',name:'',sessionsUsed:0,authToken:''};
+  }
+}
+function saveAuthState(){
+  try{
+    if(isSignedIn())localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify(authState));
+    else localStorage.removeItem(AUTH_STORAGE_KEY);
+  }catch{}
+}
+function setAuthState(next,authToken=authState.authToken){
+  authState={
+    email:normalizeEmail(next.email),
+    name:normalizeName(next.name),
+    sessionsUsed:Math.max(0,Number(next.sessionsUsed)||0),
+    authToken:String(authToken||'').trim(),
+  };
+  saveAuthState();
+  updateLandingAuthUI();
+}
+function clearAuthState(){
+  authState={email:'',name:'',sessionsUsed:0,authToken:''};
+  saveAuthState();
+  updateLandingAuthUI();
+}
+function toast(message){
+  const el=document.getElementById('toast');
+  el.textContent=message;
+  el.classList.add('on');
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>el.classList.remove('on'),2200);
+}
+function focusAuthInput(){
+  requestAnimationFrame(()=>{
+    const input=authMode===AUTH_MODELS.SIGNUP_DETAILS
+      ? document.getElementById('authName')
+      : authMode===AUTH_MODELS.SIGNIN&&document.getElementById('authEmail').value
+        ? document.getElementById('authPassword')
+        : document.getElementById('authEmail');
+    input.focus();
+    input.select();
+  });
+}
+function setAuthMode(mode,{animate=true}={}){
+  const card=document.getElementById('authCard');
+  const apply=()=>{
+    authMode=mode;
+    const emailField=document.getElementById('authEmailField');
+    const emailInput=document.getElementById('authEmail');
+    const emailSummary=document.getElementById('authEmailSummary');
+    const emailValue=document.getElementById('authEmailValue');
+    const nameField=document.getElementById('authNameField');
+    const passwordField=document.getElementById('authPasswordField');
+    const passwordInput=document.getElementById('authPassword');
+    const inlineNote=document.getElementById('authInlineNote');
+    const submitBtn=document.getElementById('authSubmitBtn');
+    const note=document.getElementById('authNote');
+    const toggleBtn=document.getElementById('authToggleBtn');
+
+    if(!emailInput.value&&authState.email)emailInput.value=authState.email;
+    if(mode===AUTH_MODELS.SIGNUP_EMAIL){
+      document.getElementById('authTitle').textContent='Get started free';
+      document.getElementById('authSubtitle').textContent='Enter your email to unlock 5 free sessions every month.';
+      submitBtn.textContent='Continue';
+      note.textContent='5 sessions/month free. No credit card.';
+      toggleBtn.textContent='Already have an account? Sign in';
+      emailField.hidden=false;
+      emailSummary.classList.remove('on');
+      nameField.hidden=true;
+      passwordField.hidden=true;
+      inlineNote.hidden=true;
+      passwordInput.value='';
+    }else if(mode===AUTH_MODELS.SIGNUP_DETAILS){
+      document.getElementById('authTitle').textContent='Create your account';
+      document.getElementById('authSubtitle').textContent='Add your name and password so your sessions are saved when you come back.';
+      submitBtn.textContent='Create account';
+      note.textContent='You only need to do this once.';
+      toggleBtn.textContent='Already have an account? Sign in';
+      emailField.hidden=true;
+      emailValue.textContent=pendingSignupEmail||emailInput.value||'—';
+      emailSummary.classList.add('on');
+      nameField.hidden=false;
+      passwordField.hidden=false;
+      inlineNote.hidden=false;
+      passwordInput.placeholder='Create a password';
+      passwordInput.autocomplete='new-password';
+    }else{
+      document.getElementById('authTitle').textContent='Welcome back';
+      document.getElementById('authSubtitle').textContent='Sign in to open your dashboard and restore your sessions.';
+      submitBtn.textContent='Sign in';
+      note.textContent='Use the email and password you set when you created your account.';
+      toggleBtn.textContent='New here? Get 5 free sessions';
+      emailField.hidden=false;
+      emailSummary.classList.remove('on');
+      nameField.hidden=true;
+      passwordField.hidden=false;
+      inlineNote.hidden=true;
+      passwordInput.placeholder='Enter your password';
+      passwordInput.autocomplete='current-password';
+      if(!emailInput.value&&pendingSignupEmail)emailInput.value=pendingSignupEmail;
+    }
+    if(document.getElementById('authModal').classList.contains('on')){
+      requestAnimationFrame(()=>card.classList.add('is-visible'));
+    }
+    focusAuthInput();
+  };
+
+  clearTimeout(authTimer);
+  if(animate){
+    card.classList.remove('is-visible');
+    authTimer=setTimeout(apply,150);
+  }else{
+    apply();
+  }
+}
+function openAuthModal(mode=AUTH_MODELS.SIGNUP_EMAIL){
+  const modal=document.getElementById('authModal');
+  modal.classList.add('on');
+  modal.setAttribute('aria-hidden','false');
+  document.body.classList.add('modal-open');
+  setAuthMode(mode,{animate:false});
+}
+function closeAuthModal(){
+  const modal=document.getElementById('authModal');
+  const card=document.getElementById('authCard');
+  clearTimeout(authTimer);
+  card.classList.remove('is-visible');
+  document.body.classList.remove('modal-open');
+  setTimeout(()=>{
+    modal.classList.remove('on');
+    modal.setAttribute('aria-hidden','true');
+  },150);
+}
+function toggleAuthMode(){
+  document.getElementById('authPassword').value='';
+  if(authMode===AUTH_MODELS.SIGNIN)setAuthMode(AUTH_MODELS.SIGNUP_EMAIL);
+  else setAuthMode(AUTH_MODELS.SIGNIN);
+}
+async function refreshAuthState(){
+  if(!isSignedIn()){
+    updateLandingAuthUI();
+    return;
+  }
+  try{
+    const res=await fetch('/api/auth/me',{headers:authHeaders()});
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.error||'Failed to load account');
+    setAuthState(data.user,authState.authToken);
+  }catch{
+    clearAuthState();
+  }
+}
+async function completeAuth(data){
+  setAuthState(data.user,data.authToken);
+  closeAuthModal();
+  location.href='/dashboard';
+}
+async function submitAuth(event){
+  event.preventDefault();
+  const emailInput=document.getElementById('authEmail');
+  const email=normalizeEmail(emailInput.value);
+  const name=normalizeName(document.getElementById('authName').value);
+  const password=document.getElementById('authPassword').value;
+  const submitBtn=document.getElementById('authSubmitBtn');
+
+  submitBtn.disabled=true;
+  submitBtn.textContent=authMode===AUTH_MODELS.SIGNUP_EMAIL?'Checking…':authMode===AUTH_MODELS.SIGNUP_DETAILS?'Creating…':'Signing in…';
+  try{
+    if(authMode===AUTH_MODELS.SIGNUP_EMAIL){
+      if(!isValidEmail(email)){
+        toast('Enter a valid email');
+        focusAuthInput();
+        return;
+      }
+      const res=await fetch('/api/lead',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email}),
+      });
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.error||'Could not continue');
+      pendingSignupEmail=data.email||email;
+      if(data.hasAccount){
+        setAuthMode(AUTH_MODELS.SIGNIN);
+        toast('Account found. Sign in to continue');
+      }else{
+        setAuthMode(AUTH_MODELS.SIGNUP_DETAILS);
+      }
+    }else if(authMode===AUTH_MODELS.SIGNUP_DETAILS){
+      if(name.length<2){
+        toast('Enter your name');
+        focusAuthInput();
+        return;
+      }
+      if(password.length<8){
+        toast('Password must be at least 8 characters');
+        document.getElementById('authPassword').focus();
+        return;
+      }
+      const res=await fetch('/api/auth/signup',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email:pendingSignupEmail,name,password}),
+      });
+      const data=await res.json();
+      if(!res.ok){
+        if(data.code==='ACCOUNT_EXISTS'){
+          document.getElementById('authEmail').value=pendingSignupEmail;
+          setAuthMode(AUTH_MODELS.SIGNIN);
+        }
+        throw new Error(data.error||'Could not create account');
+      }
+      await completeAuth(data);
+    }else{
+      if(!isValidEmail(email)){
+        toast('Enter a valid email');
+        focusAuthInput();
+        return;
+      }
+      if(password.length<8){
+        toast('Enter your password');
+        document.getElementById('authPassword').focus();
+        return;
+      }
+      const res=await fetch('/api/auth/signin',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email,password}),
+      });
+      const data=await res.json();
+      if(!res.ok){
+        if(data.code==='NO_ACCOUNT'){
+          pendingSignupEmail=email;
+          setAuthMode(AUTH_MODELS.SIGNUP_DETAILS);
+        }
+        throw new Error(data.error||'Could not sign in');
+      }
+      await completeAuth(data);
+    }
+  }catch(err){
+    toast(err.message||'Could not continue');
+  }finally{
+    submitBtn.disabled=false;
+    submitBtn.textContent=authMode===AUTH_MODELS.SIGNUP_EMAIL?'Continue':authMode===AUTH_MODELS.SIGNUP_DETAILS?'Create account':'Sign in';
+  }
+}
+function signOut(){
+  clearAuthState();
+  toast('Signed out');
+}
+function updateLandingAuthUI(){
+  const signedIn=isSignedIn();
+  const displayName=authState.name||authState.email;
+  const navUser=document.getElementById('navUser');
+  const navSignInBtn=document.getElementById('navSignInBtn');
+  const navSignOutBtn=document.getElementById('navSignOutBtn');
+  const navPrimaryCta=document.getElementById('navPrimaryCta');
+  const heroPrimaryCta=document.getElementById('heroPrimaryCta');
+  const heroAuthCta=document.getElementById('heroAuthCta');
+  const heroAccount=document.getElementById('heroAccount');
+  const footerPrimaryCta=document.getElementById('footerPrimaryCta');
+
+  navUser.hidden=!signedIn;
+  navUser.textContent=signedIn?displayName:'';
+  navSignInBtn.hidden=signedIn;
+  navSignOutBtn.hidden=!signedIn;
+
+  navPrimaryCta.textContent=signedIn?'Open dashboard':'Start free';
+  navPrimaryCta.href=signedIn?'/dashboard':'#';
+  navPrimaryCta.onclick=signedIn?null:function(){openAuthModal(AUTH_MODELS.SIGNUP_EMAIL);return false;};
+
+  heroPrimaryCta.textContent=signedIn?'Open dashboard':'Create free account →';
+  heroPrimaryCta.href=signedIn?'/dashboard':'#';
+  heroPrimaryCta.onclick=signedIn?null:function(){openAuthModal(AUTH_MODELS.SIGNUP_EMAIL);return false;};
+
+  heroAuthCta.textContent=signedIn?'Sign out':'Sign in';
+  heroAuthCta.onclick=signedIn?signOut:function(){openAuthModal(AUTH_MODELS.SIGNIN);};
+
+  heroAccount.hidden=!signedIn;
+  heroAccount.textContent=signedIn?`Signed in as ${displayName}`:'';
+
+  footerPrimaryCta.textContent=signedIn?'Open dashboard':'Create free account';
+  footerPrimaryCta.href=signedIn?'/dashboard':'#';
+  footerPrimaryCta.onclick=signedIn?null:function(){openAuthModal(AUTH_MODELS.SIGNUP_EMAIL);return false;};
+}
+
+updateLandingAuthUI();
+refreshAuthState();
+</script>
 
 </body>
 </html>

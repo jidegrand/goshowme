@@ -9,15 +9,22 @@ const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const TOKEN_TTL_MS = 30 * 60 * 1000;
 const MONTHLY_FREE_LIMIT = 5;
+const AUTH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const SESSION_GRANT_TTL_MS = 2 * 60 * 1000;
+const PASSWORD_MIN_LENGTH = 8;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 
 // In-memory token store (use Redis in production)
 const sessions = new Map();
 // token -> { createdAt, ttl, techWs, userWs, used, expired }
 const leads = new Map();
-// email -> { sessionsUsed, firstSeen, lastSeen }
+// email -> { name, passwordSalt, passwordHash, sessionsUsed, firstSeen, lastSeen, accountCreatedAt }
 const anonymousSessionCounts = new Map();
 // ip -> count
+const authTokens = new Map();
+// token -> { email, createdAt, expiresAt }
+const sessionGrants = new Map();
+// grant -> { email, createdAt, expiresAt, used }
 
 function generateToken() {
   return crypto.randomBytes(16).toString('hex');
@@ -74,6 +81,18 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function normalizeName(name) {
+  return String(name || '').trim().replace(/\s+/g, ' ');
+}
+
+function isValidName(name) {
+  return normalizeName(name).length >= 2;
+}
+
+function isValidPassword(password) {
+  return typeof password === 'string' && password.length >= PASSWORD_MIN_LENGTH;
+}
+
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
   if (typeof forwarded === 'string' && forwarded.trim()) {
@@ -98,6 +117,82 @@ function syncLeadUsage(lead) {
   return lead;
 }
 
+function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
+  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return { salt, hash };
+}
+
+function verifyPassword(password, salt, expectedHash) {
+  if (!salt || !expectedHash || !password) return false;
+  const actualHash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return crypto.timingSafeEqual(Buffer.from(actualHash, 'hex'), Buffer.from(expectedHash, 'hex'));
+}
+
+function issueAuthToken(email) {
+  const token = crypto.randomBytes(24).toString('hex');
+  authTokens.set(token, {
+    email,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + AUTH_TOKEN_TTL_MS,
+  });
+  return token;
+}
+
+function readAuthToken(req, parsedBody = null) {
+  const authHeader = req.headers.authorization || '';
+  if (authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+  if (parsedBody && typeof parsedBody.authToken === 'string') {
+    return parsedBody.authToken.trim();
+  }
+  if (typeof req.headers['x-auth-token'] === 'string') {
+    return req.headers['x-auth-token'].trim();
+  }
+  return '';
+}
+
+function getLeadFromAuthToken(token) {
+  if (!token) return null;
+  const auth = authTokens.get(token);
+  if (!auth) return null;
+  if (auth.expiresAt <= Date.now()) {
+    authTokens.delete(token);
+    return null;
+  }
+  const lead = leads.get(auth.email);
+  if (!lead) {
+    authTokens.delete(token);
+    return null;
+  }
+  syncLeadUsage(lead);
+  return { email: auth.email, lead };
+}
+
+function issueSessionGrant(email) {
+  const grant = crypto.randomBytes(18).toString('hex');
+  sessionGrants.set(grant, {
+    email,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + SESSION_GRANT_TTL_MS,
+    used: false,
+  });
+  return grant;
+}
+
+function consumeSessionGrant(email, grant) {
+  if (!grant) return false;
+  const record = sessionGrants.get(grant);
+  if (!record) return false;
+  if (record.used || record.expiresAt <= Date.now() || record.email !== email) {
+    sessionGrants.delete(grant);
+    return false;
+  }
+  record.used = true;
+  sessionGrants.delete(grant);
+  return true;
+}
+
 function getOrCreateLead(email) {
   const normalized = normalizeEmail(email);
   let lead = leads.get(normalized);
@@ -107,6 +202,10 @@ function getOrCreateLead(email) {
       sessionsUsed: 0,
       firstSeen: now,
       lastSeen: now,
+      name: null,
+      passwordSalt: null,
+      passwordHash: null,
+      accountCreatedAt: null,
     };
     leads.set(normalized, lead);
     return { email: normalized, lead };
@@ -118,10 +217,13 @@ function getOrCreateLead(email) {
 function getLeadSnapshot(email, lead) {
   return {
     email,
+    name: lead ? lead.name : null,
+    hasAccount: Boolean(lead && lead.passwordHash),
     sessionsUsed: lead ? lead.sessionsUsed : 0,
     limit: MONTHLY_FREE_LIMIT,
     firstSeen: lead ? lead.firstSeen : null,
     lastSeen: lead ? lead.lastSeen : null,
+    accountCreatedAt: lead ? lead.accountCreatedAt : null,
   };
 }
 
@@ -244,23 +346,26 @@ const httpServer = http.createServer((req, res) => {
       }
 
       const { ttl, label } = parsed;
-      const email = normalizeEmail(parsed.email);
-      if (email && !isValidEmail(email)) {
-        return writeJson(res, 400, { error: 'A valid email is required.' });
-      }
+      const authToken = readAuthToken(req, parsed);
+      const sessionGrant = String(parsed.sessionGrant || '').trim();
+      const authLead = getLeadFromAuthToken(authToken);
 
-      if (email) {
-        const lead = leads.get(email);
-        if (lead) {
-          syncLeadUsage(lead);
-          if (lead.sessionsUsed >= MONTHLY_FREE_LIMIT) {
-            return writeJson(res, 403, {
-              error: 'Free session limit reached.',
-              code: 'LIMIT_REACHED',
-              ...getLeadSnapshot(email, lead),
-            });
-          }
+      if (authToken) {
+        if (!authLead) {
+          return writeJson(res, 401, { error: 'Your sign-in expired. Please sign in again.', code: 'AUTH_REQUIRED' });
         }
+        if (!consumeSessionGrant(authLead.email, sessionGrant)) {
+          return writeJson(res, 403, { error: 'Session approval expired. Try again.', code: 'SESSION_GRANT_REQUIRED' });
+        }
+        if (authLead.lead.sessionsUsed >= MONTHLY_FREE_LIMIT) {
+          return writeJson(res, 403, {
+            error: 'Free session limit reached.',
+            code: 'LIMIT_REACHED',
+            ...getLeadSnapshot(authLead.email, authLead.lead),
+          });
+        }
+        authLead.lead.sessionsUsed += 1;
+        authLead.lead.lastSeen = new Date().toISOString();
       } else {
         const ip = getClientIp(req);
         const anonymousCount = anonymousSessionCounts.get(ip) || 0;
@@ -283,6 +388,7 @@ const httpServer = http.createServer((req, res) => {
         token: session.token,
         url: `${joinBase}/join/${session.token}`,
         expiresAt: Date.now() + session.ttl,
+        ...(authLead ? getLeadSnapshot(authLead.email, authLead.lead) : {}),
       });
     });
     return;
@@ -310,7 +416,7 @@ const httpServer = http.createServer((req, res) => {
     return;
   }
 
-  if (req.method === 'POST' && url.pathname === '/api/lead/session') {
+  if (req.method === 'POST' && url.pathname === '/api/auth/signup') {
     let body = '';
     req.on('data', d => (body += d));
     req.on('end', () => {
@@ -322,24 +428,122 @@ const httpServer = http.createServer((req, res) => {
       }
 
       const email = normalizeEmail(parsed.email);
+      const name = normalizeName(parsed.name);
+      const password = parsed.password;
+
       if (!isValidEmail(email)) {
         return writeJson(res, 400, { error: 'A valid email is required.' });
       }
+      if (!isValidName(name)) {
+        return writeJson(res, 400, { error: 'Please enter your name.' });
+      }
+      if (!isValidPassword(password)) {
+        return writeJson(res, 400, { error: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.` });
+      }
 
       const leadState = getOrCreateLead(email);
-      if (leadState.lead.sessionsUsed >= MONTHLY_FREE_LIMIT) {
+      if (leadState.lead.passwordHash) {
+        return writeJson(res, 409, { error: 'An account already exists for this email.', code: 'ACCOUNT_EXISTS' });
+      }
+
+      const passwordData = hashPassword(password);
+      leadState.lead.name = name;
+      leadState.lead.passwordSalt = passwordData.salt;
+      leadState.lead.passwordHash = passwordData.hash;
+      leadState.lead.accountCreatedAt = new Date().toISOString();
+      leadState.lead.lastSeen = new Date().toISOString();
+
+      const authToken = issueAuthToken(leadState.email);
+      writeJson(res, 200, {
+        authToken,
+        user: getLeadSnapshot(leadState.email, leadState.lead),
+      });
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/auth/signin') {
+    let body = '';
+    req.on('data', d => (body += d));
+    req.on('end', () => {
+      let parsed;
+      try {
+        parsed = JSON.parse(body || '{}');
+      } catch {
+        return writeJson(res, 400, { error: 'Invalid JSON' });
+      }
+
+      const email = normalizeEmail(parsed.email);
+      const password = parsed.password;
+
+      if (!isValidEmail(email)) {
+        return writeJson(res, 400, { error: 'A valid email is required.' });
+      }
+      if (!isValidPassword(password)) {
+        return writeJson(res, 400, { error: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.` });
+      }
+
+      const lead = leads.get(email);
+      if (!lead || !lead.passwordHash) {
+        return writeJson(res, 404, { error: 'No account found for this email.', code: 'NO_ACCOUNT' });
+      }
+      syncLeadUsage(lead);
+      if (!verifyPassword(password, lead.passwordSalt, lead.passwordHash)) {
+        return writeJson(res, 401, { error: 'Incorrect password.', code: 'INVALID_PASSWORD' });
+      }
+
+      const authToken = issueAuthToken(email);
+      writeJson(res, 200, {
+        authToken,
+        user: getLeadSnapshot(email, lead),
+      });
+    });
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/auth/me') {
+    const authToken = readAuthToken(req);
+    const authLead = getLeadFromAuthToken(authToken);
+    if (!authLead) {
+      return writeJson(res, 401, { error: 'Authentication required.', code: 'AUTH_REQUIRED' });
+    }
+
+    writeJson(res, 200, {
+      user: getLeadSnapshot(authLead.email, authLead.lead),
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/lead/session') {
+    let body = '';
+    req.on('data', d => (body += d));
+    req.on('end', () => {
+      let parsed;
+      try {
+        parsed = JSON.parse(body || '{}');
+      } catch {
+        return writeJson(res, 400, { error: 'Invalid JSON' });
+      }
+
+      const authToken = readAuthToken(req, parsed);
+      const authLead = getLeadFromAuthToken(authToken);
+      if (!authLead) {
+        return writeJson(res, 401, { error: 'Your sign-in expired. Please sign in again.', code: 'AUTH_REQUIRED' });
+      }
+
+      if (authLead.lead.sessionsUsed >= MONTHLY_FREE_LIMIT) {
         return writeJson(res, 200, {
           allowed: false,
-          ...getLeadSnapshot(leadState.email, leadState.lead),
+          ...getLeadSnapshot(authLead.email, authLead.lead),
         });
       }
 
-      leadState.lead.sessionsUsed += 1;
-      leadState.lead.lastSeen = new Date().toISOString();
+      const sessionGrant = issueSessionGrant(authLead.email);
 
       writeJson(res, 200, {
         allowed: true,
-        ...getLeadSnapshot(leadState.email, leadState.lead),
+        sessionGrant,
+        ...getLeadSnapshot(authLead.email, authLead.lead),
       });
     });
     return;
@@ -351,9 +555,12 @@ const httpServer = http.createServer((req, res) => {
     for (const [email, lead] of leads.entries()) {
       exportedLeads.push({
         email,
+        name: lead.name,
+        hasAccount: Boolean(lead.passwordHash),
         sessionsUsed: lead.sessionsUsed,
         firstSeen: lead.firstSeen,
         lastSeen: lead.lastSeen,
+        accountCreatedAt: lead.accountCreatedAt,
       });
     }
     writeJson(res, 200, exportedLeads);
