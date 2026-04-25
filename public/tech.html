@@ -124,6 +124,9 @@
   .media-frame { position: absolute; left: 50%; top: 50%; width: 100%; height: 100%; max-width: 100%; max-height: 100%; transform: translate(-50%, -50%); transform-origin: center center; overflow: hidden; border-radius: 12px; background: #000; transition: transform .2s ease, width .2s ease, height .2s ease; }
   #remoteVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: none; background: #000; }
   #remoteVideo.on { display: block; }
+  .freeze-badge { position: absolute; top: 12px; left: 12px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 999px; background: rgba(56,189,248,.16); border: 1px solid rgba(56,189,248,.55); color: #bae6fd; font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .08em; z-index: 4; pointer-events: none; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .freeze-badge[hidden] { display: none; }
+  .media-frame.frozen #remoteVideo { filter: saturate(.92) brightness(.96); }
 
   .wait { display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
   .wait.off { display: none; }
@@ -493,6 +496,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M8 21h8"/></svg>
           <span>Talk</span>
         </button>
+        <button class="ico-btn toggle-btn" id="freezeBtn" title="Freeze the current frame for inspection" aria-pressed="false" disabled onclick="toggleFreeze()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 12h18"/><path d="M5.6 5.6l12.8 12.8"/><path d="M18.4 5.6L5.6 18.4"/></svg>
+          <span>Freeze</span>
+        </button>
         <button class="ico-btn ai-trigger" id="aiBtn" title="Vision AI — analyze frame" onclick="toggleAI()" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><path d="M12 5v1M12 18v1M5 12H4M20 12h-1"/></svg>
         </button>
@@ -512,6 +519,10 @@
       <div class="media-frame" id="mediaFrame">
         <video id="remoteVideo" autoplay playsinline></video>
         <canvas id="annoCanvas"></canvas>
+        <div class="freeze-badge" id="freezeBadge" hidden>
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18"/><path d="M3 12h18"/><path d="M5.6 5.6l12.8 12.8"/><path d="M18.4 5.6L5.6 18.4"/></svg>
+          <span>FROZEN</span>
+        </div>
       </div>
 
       <!-- AI Vision sidebar -->
@@ -1242,6 +1253,50 @@ async function toggleTechMic(){
   updateVoiceUI();
 }
 
+// ── FREEZE FRAME (tech-side only) ──────────────────────────────────────────
+// Pauses the local <video> so the tech can examine/annotate the still frame.
+// The user's phone keeps streaming — we just stop *displaying* new frames here.
+let frozen = false;
+let freezeCapable = false;
+function updateFreezeUI(){
+  const btn = document.getElementById('freezeBtn');
+  const badge = document.getElementById('freezeBadge');
+  const frame = document.getElementById('mediaFrame');
+  if(btn){
+    btn.disabled = !freezeCapable;
+    btn.classList.toggle('toggle-on', frozen);
+    btn.setAttribute('aria-pressed', frozen ? 'true' : 'false');
+    btn.title = !freezeCapable
+      ? 'Freeze available once the live stream is connected'
+      : (frozen ? 'Frame frozen — click to resume live' : 'Freeze the current frame for inspection');
+  }
+  if(badge) badge.hidden = !frozen;
+  if(frame) frame.classList.toggle('frozen', frozen);
+}
+function setFreezeCapable(on){
+  freezeCapable = !!on;
+  if(!freezeCapable && frozen){
+    // session ended while frozen — resume the (now empty) video so a future stream plays
+    const v=document.getElementById('remoteVideo');
+    if(v){ try{ v.play().catch(()=>{}); }catch(_){} }
+    frozen = false;
+  }
+  updateFreezeUI();
+}
+function toggleFreeze(){
+  if(!freezeCapable) return;
+  const v=document.getElementById('remoteVideo');
+  if(!v) return;
+  if(frozen){
+    try{ v.play().catch(err=>console.warn('[FREEZE] resume play failed:',err)); }catch(_){}
+    frozen = false;
+  } else {
+    try{ v.pause(); }catch(_){}
+    frozen = true;
+  }
+  updateFreezeUI();
+}
+
 function handleSignal(msg){
   switch(msg.type){
     case 'joined': setConn('idle'); break;
@@ -1263,9 +1318,13 @@ async function startRTC(){
   pc=new RTCPeerConnection({iceServers});
   pc.onicecandidate=({candidate})=>{if(candidate)sendWS({type:'candidate',candidate});};
   pc.ontrack=e=>{
-    console.log('[PC] ontrack — stream received');
+    console.log('[PC] ontrack —',e.track && e.track.kind,'track received');
     const v=document.getElementById('remoteVideo');
-    v.srcObject=e.streams[0]; v.classList.add('on');
+    if(v && e.streams && e.streams[0] && v.srcObject!==e.streams[0]){
+      v.srcObject=e.streams[0];
+    }
+    if(e.track && e.track.kind==='audio') return; // video below handles UI bringup
+    v.classList.add('on');
     resetZoom();
     fitMediaFrame();
     document.getElementById('waitScreen').classList.add('off');
@@ -1274,6 +1333,7 @@ async function startRTC(){
     document.getElementById('statState').textContent='live';
     showAnnoToolbar(true);
     document.getElementById('aiBtn').style.display='flex';
+    setFreezeCapable(true);
     v.onloadedmetadata=()=>fitMediaFrame();
   };
   pc.onconnectionstatechange=()=>{
@@ -1297,6 +1357,7 @@ async function startRTC(){
 function tearPeer(){
   if(pc){try{pc.close();}catch(_){}pc=null;}
   setVoiceCapable(false);
+  setFreezeCapable(false);
   clearInterval(durInt);durInt=null;sessStart=null;
   document.getElementById('statDur').textContent='—';
   document.getElementById('statState').textContent=activeToken?'waiting':'—';
