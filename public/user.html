@@ -224,6 +224,8 @@
     <div class="cam-wrap" id="camWrap">
       <div class="cam-stage" id="camStage">
         <video id="localVideo" autoplay playsinline muted></video>
+        <!-- Hidden sink for tech's voice intercom audio -->
+        <audio id="techAudio" autoplay playsinline></audio>
         <div class="cam-hud">
           <div class="cam-top">
             <div class="live-pill"><div class="live-pulse"></div>LIVE</div>
@@ -580,6 +582,16 @@ async function handleOffer(offer){
   pc.oniceconnectionstatechange=()=>console.log('[ICE] connectionState:',pc.iceConnectionState);
   pc.onicegatheringstatechange=()=>console.log('[ICE] gatheringState:',pc.iceGatheringState);
   pc.onicecandidateerror=e=>console.warn('[ICE] candidate error:',e.errorCode,e.errorText,'url=',e.url);
+  // Pipe tech's mic (voice intercom) into the hidden <audio id="techAudio"> sink
+  pc.ontrack=e=>{
+    if(e.track && e.track.kind==='audio'){
+      const a=document.getElementById('techAudio');
+      if(a){
+        a.srcObject=e.streams && e.streams[0] ? e.streams[0] : new MediaStream([e.track]);
+        a.play().catch(err=>console.warn('[VOICE] techAudio.play failed:',err));
+      }
+    }
+  };
   if(localStream)localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
   await pc.setRemoteDescription(new RTCSessionDescription(offer));
   const answer=await pc.createAnswer();

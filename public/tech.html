@@ -489,6 +489,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6l-1 6H10z"/><path d="M9 8l-2 5h10l-2-5"/><path d="M12 13v9"/></svg>
           <span>Torch</span>
         </button>
+        <button class="ico-btn toggle-btn" id="voiceBtn" title="Talk to user" aria-pressed="false" disabled onclick="toggleTechMic()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M8 21h8"/></svg>
+          <span>Talk</span>
+        </button>
         <button class="ico-btn ai-trigger" id="aiBtn" title="Vision AI — analyze frame" onclick="toggleAI()" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><path d="M12 5v1M12 18v1M5 12H4M20 12h-1"/></svg>
         </button>
@@ -1176,6 +1180,68 @@ function toggleTorch(){
   updateTorchUI();
 }
 
+// ── VOICE INTERCOM (tech mic → user) ───────────────────────────────────────
+let audioSender = null;        // RTCRtpSender from sendrecv audio transceiver
+let techMicStream = null;      // MediaStream from getUserMedia({audio:true})
+let techMicOn = false;
+let voiceCapable = false;      // true once startRTC has wired the audio sender
+function updateVoiceUI(){
+  const btn = document.getElementById('voiceBtn');
+  if(!btn) return;
+  btn.disabled = !voiceCapable;
+  btn.classList.toggle('toggle-on', techMicOn);
+  btn.setAttribute('aria-pressed', techMicOn ? 'true' : 'false');
+  btn.title = !voiceCapable
+    ? 'Voice intercom unavailable until session is live'
+    : (techMicOn ? 'Mic on — click to mute' : 'Click to talk to user');
+}
+function setVoiceCapable(on){
+  voiceCapable = !!on;
+  if(!voiceCapable){
+    techMicOn = false;
+    if(techMicStream){
+      try{ techMicStream.getTracks().forEach(t=>t.stop()); }catch(_){}
+      techMicStream = null;
+    }
+    audioSender = null;
+  }
+  updateVoiceUI();
+}
+async function toggleTechMic(){
+  if(!voiceCapable || !audioSender) return;
+  const next = !techMicOn;
+  if(next){
+    try{
+      if(!techMicStream){
+        techMicStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          video: false
+        });
+      }
+      const track = techMicStream.getAudioTracks()[0];
+      if(!track) throw new Error('No mic track');
+      track.enabled = true;
+      await audioSender.replaceTrack(track);
+      techMicOn = true;
+    }catch(e){
+      console.warn('[VOICE] mic enable failed:', e);
+      toast('Mic blocked: '+(e && e.message ? e.message : e));
+      techMicOn = false;
+    }
+  } else {
+    try{
+      if(techMicStream){
+        techMicStream.getAudioTracks().forEach(t=>{ t.enabled = false; });
+      }
+      await audioSender.replaceTrack(null);
+    }catch(e){
+      console.warn('[VOICE] mic disable failed:', e);
+    }
+    techMicOn = false;
+  }
+  updateVoiceUI();
+}
+
 function handleSignal(msg){
   switch(msg.type){
     case 'joined': setConn('idle'); break;
@@ -1219,12 +1285,18 @@ async function startRTC(){
   pc.oniceconnectionstatechange=()=>console.log('[ICE] connectionState:',pc.iceConnectionState);
   pc.onicegatheringstatechange=()=>console.log('[ICE] gatheringState:',pc.iceGatheringState);
   pc.onicecandidateerror=e=>console.warn('[ICE] candidate error:',e.errorCode,e.errorText,'url=',e.url);
-  const offer=await pc.createOffer({offerToReceiveVideo:true,offerToReceiveAudio:true});
+  // Explicit transceivers: video recvonly (we only watch); audio sendrecv (two-way intercom).
+  pc.addTransceiver('video', { direction: 'recvonly' });
+  const audioTx = pc.addTransceiver('audio', { direction: 'sendrecv' });
+  audioSender = audioTx.sender;
+  setVoiceCapable(true);
+  const offer=await pc.createOffer();
   await pc.setLocalDescription(offer);
   sendWS({type:'offer',sdp:offer.sdp});
 }
 function tearPeer(){
   if(pc){try{pc.close();}catch(_){}pc=null;}
+  setVoiceCapable(false);
   clearInterval(durInt);durInt=null;sessStart=null;
   document.getElementById('statDur').textContent='—';
   document.getElementById('statState').textContent=activeToken?'waiting':'—';
