@@ -1044,14 +1044,20 @@ let lastRemoteAngle = 0;
 let remoteZoom = 1;
 let followRemoteOrientation = loadOrientationFollowPreference();
 function normalizedRotationDeg(angle){
-  // iOS Safari CVO already lays the frame down 180° off from our
-  // compensation convention, so the video arrived upside-down with
-  // AUTO ROTATE on. Offset every quadrant by +180° so AUTO ROTATE
-  // now ends up upright in all four phone positions.
-  if (angle === 90) return 90;
-  if (angle === 180) return 0;
-  if (angle === 270) return -90;
-  return 180;
+  // Counter-rotate the CSS transform to cancel the phone's reported
+  // sensor angle. iOS Safari's CVO already lays the WebRTC frame
+  // upright in portrait, so angle=0 must map to 0° rotation — any
+  // baked-in offset would invert portrait.
+  if (angle === 90) return -90;
+  if (angle === 180) return 180;
+  if (angle === 270) return 90;
+  return 0;
+}
+// Single source of truth for the rotation actually in effect.
+// Annotation hit-testing uses this so it stays in lockstep with
+// whatever applyMediaFrameTransform applies to the frame.
+function effectiveRotationDeg(){
+  return ((normalizedRotationDeg(remoteAngle) % 360) + 360) % 360;
 }
 function updateOrientationToggleUI(){
   const btn=document.getElementById('orientationToggleBtn');
@@ -1072,7 +1078,7 @@ function updateZoomUI(){
 }
 function applyMediaFrameTransform(){
   const frame = document.getElementById('mediaFrame');
-  frame.style.transform = `translate(-50%, -50%) rotate(${normalizedRotationDeg(remoteAngle)}deg) scale(${remoteZoom})`;
+  frame.style.transform = `translate(-50%, -50%) rotate(${effectiveRotationDeg()}deg) scale(${remoteZoom})`;
   updateZoomUI();
 }
 function fitMediaFrame(){
@@ -1417,9 +1423,24 @@ function setSize(s, el) {
 
 function getNorm(e) {
   const r = annoCanvas.getBoundingClientRect();
-  const x = ((e.touches ? e.touches[0].clientX : e.clientX) - r.left) / r.width;
-  const y = ((e.touches ? e.touches[0].clientY : e.clientY) - r.top)  / r.height;
-  return { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  // Normalized click within the displayed (axis-aligned) bounding box.
+  const vx = (clientX - r.left) / r.width;
+  const vy = (clientY - r.top)  / r.height;
+
+  // annoCanvas lives inside #mediaFrame, which is rotated by
+  // effectiveRotationDeg(). Inverse-rotate so the value we send is in
+  // the scene's own (unrotated) coord frame — a right-drag on screen
+  // always becomes a rightward scene vector, regardless of quadrant.
+  const deg = effectiveRotationDeg();
+  let sx, sy;
+  if (deg === 90)       { sx = vy;       sy = 1 - vx; }
+  else if (deg === 180) { sx = 1 - vx;   sy = 1 - vy; }
+  else if (deg === 270) { sx = 1 - vy;   sy = vx;     }
+  else                  { sx = vx;       sy = vy;     }
+
+  return { x: Math.max(0, Math.min(1, sx)), y: Math.max(0, Math.min(1, sy)) };
 }
 
 annoCanvas.addEventListener('mousedown', e => {
