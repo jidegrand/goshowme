@@ -1056,8 +1056,16 @@ function normalizedRotationDeg(angle){
 // Single source of truth for the rotation actually in effect.
 // Annotation hit-testing uses this so it stays in lockstep with
 // whatever applyMediaFrameTransform applies to the frame.
+//
+// iOS Safari's CVO orients the WebRTC frame correctly in portrait,
+// but with Portrait Orientation Lock on it leaves the landscape
+// captures 180° off. Add the offset ONLY in the landscape quadrants
+// so portrait stays upright and landscape lands the right way up.
 function effectiveRotationDeg(){
-  return ((normalizedRotationDeg(remoteAngle) % 360) + 360) % 360;
+  const base = normalizedRotationDeg(remoteAngle);
+  const isLandscape = (remoteAngle === 90 || remoteAngle === 270);
+  const cvoOffset = isLandscape ? 180 : 0;
+  return ((base + cvoOffset) % 360 + 360) % 360;
 }
 function updateOrientationToggleUI(){
   const btn=document.getElementById('orientationToggleBtn');
