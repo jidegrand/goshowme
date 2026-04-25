@@ -404,6 +404,7 @@ async function requestCamera(){
     const localVideo=document.getElementById('localVideo');
     localVideo.srcObject=localStream;
     localVideo.onloadedmetadata=()=>sendOrientation(true);
+    detectTorchCapability();
     show('scrWait');
     connectWS();
     // Attempt to lock portrait — works on Android Chrome in fullscreen; silently ignored elsewhere
@@ -411,6 +412,44 @@ async function requestCamera(){
   }catch(err){
     if(err.name==='NotAllowedError')expire('Camera blocked','Tap browser settings, allow camera access, then refresh.');
     else expire('Camera error',err.message);
+  }
+}
+
+// ── TORCH ──────────────────────────────────────────────────────────────────
+let _torchSupported=false;
+let _torchOn=false;
+function getVideoTrack(){
+  return localStream && localStream.getVideoTracks ? localStream.getVideoTracks()[0] : null;
+}
+function detectTorchCapability(){
+  const track=getVideoTrack();
+  _torchSupported=false;
+  try{
+    if(track && typeof track.getCapabilities==='function'){
+      const caps=track.getCapabilities();
+      _torchSupported=!!(caps && caps.torch);
+    }
+  }catch(_){_torchSupported=false;}
+  console.log('[TORCH] supported:',_torchSupported);
+  sendTorchCapability();
+}
+function sendTorchCapability(){
+  sendWS({type:'torch_capability',supported:_torchSupported});
+}
+async function setTorch(on){
+  const track=getVideoTrack();
+  if(!track || !_torchSupported){
+    sendWS({type:'torch_state',on:false,error:'unsupported'});
+    return;
+  }
+  try{
+    await track.applyConstraints({advanced:[{torch:!!on}]});
+    _torchOn=!!on;
+    console.log('[TORCH] state:',_torchOn);
+    sendWS({type:'torch_state',on:_torchOn});
+  }catch(e){
+    console.warn('[TORCH] applyConstraints failed:',e);
+    sendWS({type:'torch_state',on:_torchOn,error:String(e&&e.message||e)});
   }
 }
 
@@ -438,6 +477,7 @@ function connectWS(){
   ws.onopen=()=>{
     sendWS({type:'join',token,role:'user'});
     sendOrientation(true);
+    sendTorchCapability();
     _wsPingTimer=setInterval(()=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'ping'}));},25000);
   };
   ws.onclose=()=>clearInterval(_wsPingTimer);
@@ -518,9 +558,10 @@ async function handle(msg){
     case 'joined':
       document.getElementById('byName').textContent=msg.label||'Support tech';
       startTTL(msg.expiresAt); break;
-    case 'offer': await handleOffer(msg); break;
+    case 'offer': await handleOffer(msg); sendTorchCapability(); break;
     case 'candidate': if(pc&&msg.candidate)pc.addIceCandidate(new RTCIceCandidate(msg.candidate)); break;
     case 'annotate': handleAnno(msg); break;
+    case 'torch': await setTorch(!!msg.on); break;
     case 'peer_ended': case 'session_expired': cleanup(); show('scrEnded'); break;
     case 'error': expire('Error',msg.message||'Something went wrong.'); break;
   }

@@ -794,7 +794,7 @@ wss.on('connection', (ws, req) => {
 
     const peer = ws._role === 'tech' ? session.userWs : session.techWs;
 
-    if (['offer', 'answer', 'candidate', 'annotate', 'recording_started', 'recording_stopped', 'orientation'].includes(msg.type)) {
+    if (['offer', 'answer', 'candidate', 'annotate', 'recording_started', 'recording_stopped', 'orientation', 'torch', 'torch_capability', 'torch_state'].includes(msg.type)) {
       safeSend(peer, msg);
       return;
     }

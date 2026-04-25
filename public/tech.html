@@ -485,6 +485,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 13.66-5.66L20 9"/><path d="M20 4v5h-5"/><path d="M20 12a8 8 0 0 1-13.66 5.66L4 15"/><path d="M4 20v-5h5"/></svg>
           <span>Auto rotate</span>
         </button>
+        <button class="ico-btn toggle-btn" id="torchBtn" title="Torch unavailable on this device" aria-pressed="false" disabled onclick="toggleTorch()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6l-1 6H10z"/><path d="M9 8l-2 5h10l-2-5"/><path d="M12 13v9"/></svg>
+          <span>Torch</span>
+        </button>
         <button class="ico-btn ai-trigger" id="aiBtn" title="Vision AI — analyze frame" onclick="toggleAI()" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><path d="M12 5v1M12 18v1M5 12H4M20 12h-1"/></svg>
         </button>
@@ -1141,14 +1145,47 @@ function applyRemoteOrientation(angle){
   if(followRemoteOrientation)applyDisplayedOrientation();
 }
 
+// ── TORCH ──────────────────────────────────────────────────────────────────
+let torchSupported = false;
+let torchOn = false;
+function updateTorchUI(){
+  const btn = document.getElementById('torchBtn');
+  if(!btn) return;
+  btn.disabled = !torchSupported;
+  btn.classList.toggle('toggle-on', torchOn);
+  btn.setAttribute('aria-pressed', torchOn ? 'true' : 'false');
+  btn.title = !torchSupported
+    ? 'Torch unavailable on this device'
+    : (torchOn ? 'Torch is on — click to turn off' : 'Turn torch on');
+}
+function setTorchCapability(supported){
+  torchSupported = !!supported;
+  if(!torchSupported) torchOn = false;
+  updateTorchUI();
+}
+function applyTorchState(on){
+  torchOn = !!on;
+  updateTorchUI();
+}
+function toggleTorch(){
+  if(!torchSupported) return;
+  const next = !torchOn;
+  sendWS({type:'torch', on: next});
+  // Optimistic UI; user-side will confirm via torch_state
+  torchOn = next;
+  updateTorchUI();
+}
+
 function handleSignal(msg){
   switch(msg.type){
     case 'joined': setConn('idle'); break;
     case 'user_connected': toast('User connected — starting stream…'); setConn('connecting'); startRTC(); break;
-    case 'user_disconnected': toast('User disconnected'); setConn('idle'); tearPeer(); liveBadge(false); break;
+    case 'user_disconnected': toast('User disconnected'); setConn('idle'); tearPeer(); liveBadge(false); setTorchCapability(false); break;
     case 'answer': if(pc)pc.setRemoteDescription(new RTCSessionDescription(msg)); break;
     case 'candidate': if(pc&&msg.candidate)pc.addIceCandidate(new RTCIceCandidate(msg.candidate)); break;
     case 'orientation': applyRemoteOrientation(msg.angle); break;
+    case 'torch_capability': setTorchCapability(msg.supported); break;
+    case 'torch_state': applyTorchState(msg.on); if(msg.error)toast('Torch: '+msg.error); break;
     case 'peer_ended': case 'session_expired': toast(msg.type==='session_expired'?'Session expired':'Session ended by user'); tearSession(); break;
   }
 }
