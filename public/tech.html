@@ -201,7 +201,7 @@
   }
   .ai-badge {
     font-family: var(--mono); font-size: 9px; padding: 2px 7px;
-    border-radius: 4px; background: var(--orange-dim);
+    border-radius: 4px; background: var(--accent-dim);
     border: 1px solid rgba(255,79,0,.25); color: var(--accent); letter-spacing: .04em;
   }
   .ai-close {
@@ -212,6 +212,61 @@
   }
   .ai-close:hover { color: var(--text); }
   .ai-close svg { width: 13px; height: 13px; }
+
+  /* ── Chat panel (tech) ───────────────────────────────────────────── */
+  .chat-panel {
+    position: absolute; top: 0; right: 0; bottom: 0;
+    width: 320px; z-index: 21;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    transform: translateX(100%);
+    transition: transform .25s cubic-bezier(.4,0,.2,1);
+    overflow: hidden;
+  }
+  .chat-panel.open { transform: translateX(0); }
+  .chat-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .chat-title { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; letter-spacing: -.01em; }
+  .chat-list { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; scroll-behavior: smooth; }
+  .chat-empty { color: var(--muted); font-size: 11px; text-align: center; padding: 24px 12px; line-height: 1.6; }
+  .chat-msg { max-width: 84%; padding: 8px 11px; border-radius: 10px; font-size: 12.5px; line-height: 1.45; word-wrap: break-word; white-space: pre-wrap; }
+  .chat-msg .meta { display: block; font-family: var(--mono); font-size: 9.5px; color: var(--muted); margin-top: 4px; opacity: .8; }
+  .chat-msg.mine { align-self: flex-end; background: var(--accent-dim); border: 1px solid rgba(255,79,0,.30); color: var(--text); }
+  .chat-msg.theirs { align-self: flex-start; background: rgba(255,255,255,.05); border: 1px solid var(--border-hi); color: var(--text); }
+  .chat-msg.system { align-self: center; background: transparent; border: none; color: var(--muted); font-style: italic; font-size: 11px; padding: 2px 0; }
+  .chat-input-wrap {
+    border-top: 1px solid var(--border); padding: 10px 12px; flex-shrink: 0;
+    display: flex; align-items: flex-end; gap: 8px; background: var(--surface);
+  }
+  .chat-input {
+    flex: 1; min-height: 36px; max-height: 110px; resize: none;
+    padding: 9px 11px; border-radius: 8px;
+    background: rgba(255,255,255,.04); border: 1px solid var(--border-hi); color: var(--text);
+    font: inherit; font-size: 12.5px; line-height: 1.4; outline: none;
+    transition: border-color .15s, background .15s;
+  }
+  .chat-input:focus { border-color: var(--accent); background: rgba(255,255,255,.06); }
+  .chat-input:disabled { opacity: .5; cursor: not-allowed; }
+  .chat-send {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: var(--accent); border: none; color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: filter .15s, opacity .15s;
+  }
+  .chat-send:hover:not(:disabled) { filter: brightness(1.08); }
+  .chat-send:disabled { opacity: .35; cursor: not-allowed; }
+  .chat-send svg { width: 15px; height: 15px; }
+  .ico-btn .badge-dot {
+    position: absolute; top: 2px; right: 2px;
+    min-width: 14px; height: 14px; padding: 0 4px; border-radius: 7px;
+    background: var(--accent); color: #fff; font-family: var(--mono); font-size: 9px; font-weight: 700;
+    display: none; align-items: center; justify-content: center; line-height: 1;
+  }
+  .ico-btn .badge-dot.on { display: flex; }
+  .ico-btn { position: relative; }
 
   .ai-actions {
     padding: 10px 12px; border-bottom: 1px solid var(--border);
@@ -366,7 +421,7 @@
     .anno-toolbar { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
     .anno-toolbar::-webkit-scrollbar { display: none; }
     .anno-lbl, .anno-btn, .anno-sep, .anno-color-row, .anno-size-row { flex-shrink: 0; }
-    .ai-sidebar { width: min(360px, 100%); }
+    .ai-sidebar, .chat-panel { width: min(360px, 100%); }
     .lead-modal { align-items: flex-end; padding: 20px; }
     .lead-modal-shell { width: 100%; }
     .lead-modal-card { padding: 24px 20px; }
@@ -389,7 +444,7 @@
     .statsbar { padding: 10px 14px; font-size: 9px; }
     .stat { min-width: 0; }
     .stat-v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ai-sidebar { width: 100%; }
+    .ai-sidebar, .chat-panel { width: 100%; }
     .ai-sidebar-head, .ai-actions, .ai-results { padding-left: 14px; padding-right: 14px; }
     .anno-toolbar { padding: 8px 12px; }
     .lead-modal { padding: 20px; }
@@ -500,6 +555,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 12h18"/><path d="M5.6 5.6l12.8 12.8"/><path d="M18.4 5.6L5.6 18.4"/></svg>
           <span>Freeze</span>
         </button>
+        <button class="ico-btn" id="chatBtn" title="Open text chat" onclick="toggleChat()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
+          <span class="badge-dot" id="chatBadge"></span>
+        </button>
         <button class="ico-btn ai-trigger" id="aiBtn" title="Vision AI — analyze frame" onclick="toggleAI()" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><path d="M12 5v1M12 18v1M5 12H4M20 12h-1"/></svg>
         </button>
@@ -583,6 +642,28 @@
             <span>Choose an analysis mode above.<br>AI reads the live camera frame.</span>
           </div>
         </div>
+      </div>
+
+      <!-- Text chat sidebar -->
+      <div class="chat-panel" id="chatPanel" aria-hidden="true">
+        <div class="chat-head">
+          <div class="chat-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
+            Text chat
+          </div>
+          <button class="ai-close" type="button" onclick="toggleChat(false)" title="Close chat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="chat-list" id="chatList" aria-live="polite">
+          <div class="chat-empty" id="chatEmpty">Messages with the user will appear here.</div>
+        </div>
+        <form class="chat-input-wrap" onsubmit="sendChat(event)">
+          <textarea class="chat-input" id="chatInput" rows="1" maxlength="2000" placeholder="User must connect before chat is available" disabled oninput="handleChatInput()" onkeydown="handleChatKeydown(event)"></textarea>
+          <button class="chat-send" id="chatSendBtn" type="submit" title="Send message" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          </button>
+        </form>
       </div>
 
       <div class="wait" id="waitScreen">
@@ -1059,6 +1140,123 @@ function connectWS(){
 }
 function sendWS(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}
 
+// ── TEXT CHAT ───────────────────────────────────────────────────────────────
+let chatOpen = false;
+let chatUnread = 0;
+let chatCapable = false;
+function updateChatUI(){
+  const panel=document.getElementById('chatPanel');
+  const btn=document.getElementById('chatBtn');
+  const badge=document.getElementById('chatBadge');
+  const input=document.getElementById('chatInput');
+  const sendBtn=document.getElementById('chatSendBtn');
+  if(panel){
+    panel.classList.toggle('open',chatOpen);
+    panel.setAttribute('aria-hidden',chatOpen?'false':'true');
+  }
+  if(btn)btn.title=chatOpen?'Close text chat':'Open text chat';
+  if(badge){
+    badge.textContent=chatUnread>9?'9+':String(chatUnread);
+    badge.classList.toggle('on',chatUnread>0);
+  }
+  if(input){
+    input.disabled=!chatCapable;
+    input.placeholder=chatCapable?'Message user':'User must connect before chat is available';
+  }
+  if(sendBtn)sendBtn.disabled=!chatCapable||!input||!input.value.trim();
+}
+function toggleChat(force){
+  chatOpen=typeof force==='boolean'?force:!chatOpen;
+  if(chatOpen){
+    chatUnread=0;
+    if(aiOpen){
+      aiOpen=false;
+      document.getElementById('aiSidebar').classList.remove('open');
+    }
+    setTimeout(()=>document.getElementById('chatInput')?.focus(),0);
+  }
+  updateChatUI();
+}
+function setChatCapable(on){
+  chatCapable=!!on;
+  updateChatUI();
+}
+function resetChatSession(){
+  chatOpen=false;
+  chatUnread=0;
+  chatCapable=false;
+  const list=document.getElementById('chatList');
+  if(list)list.innerHTML='<div class="chat-empty" id="chatEmpty">Messages with the user will appear here.</div>';
+  const input=document.getElementById('chatInput');
+  if(input){
+    input.value='';
+    input.style.height='';
+  }
+  updateChatUI();
+}
+function handleChatInput(){
+  const input=document.getElementById('chatInput');
+  if(input){
+    input.style.height='auto';
+    input.style.height=Math.min(input.scrollHeight,110)+'px';
+  }
+  updateChatUI();
+}
+function handleChatKeydown(e){
+  if(e.key==='Enter'&&!e.shiftKey){
+    e.preventDefault();
+    sendChat(e);
+  }
+}
+function sendChat(e){
+  if(e)e.preventDefault();
+  const input=document.getElementById('chatInput');
+  const text=(input?.value||'').trim();
+  if(!text)return;
+  if(!chatCapable){toast('User must connect before chat');return;}
+  sendWS({type:'chat',text});
+  input.value='';
+  handleChatInput();
+}
+function receiveChat(msg){
+  const text=typeof msg.text==='string'?msg.text.trim():'';
+  if(!text)return;
+  const mine=msg.from==='tech';
+  appendChatMessage(text,mine,msg.ts);
+  if(!mine&&!chatOpen){
+    chatUnread++;
+    toast('New chat message');
+  }
+  updateChatUI();
+}
+function appendChatMessage(text,mine,ts){
+  const list=document.getElementById('chatList');
+  if(!list)return;
+  document.getElementById('chatEmpty')?.remove();
+  const item=document.createElement('div');
+  item.className='chat-msg '+(mine?'mine':'theirs');
+  item.textContent=text;
+  const meta=document.createElement('span');
+  meta.className='meta';
+  meta.textContent=(mine?'You':'User')+' · '+chatTime(ts);
+  item.appendChild(meta);
+  list.appendChild(item);
+  list.scrollTop=list.scrollHeight;
+}
+function appendChatSystem(text){
+  const list=document.getElementById('chatList');
+  if(!list)return;
+  document.getElementById('chatEmpty')?.remove();
+  const item=document.createElement('div');
+  item.className='chat-msg system';
+  item.textContent=text;
+  list.appendChild(item);
+  list.scrollTop=list.scrollHeight;
+}
+function chatTime(ts){
+  return new Date(ts||Date.now()).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+}
+
 let remoteAngle = 0;
 let lastRemoteAngle = 0;
 let remoteZoom = 1;
@@ -1300,13 +1498,14 @@ function toggleFreeze(){
 function handleSignal(msg){
   switch(msg.type){
     case 'joined': setConn('idle'); break;
-    case 'user_connected': toast('User connected — starting stream…'); setConn('connecting'); startRTC(); break;
-    case 'user_disconnected': toast('User disconnected'); setConn('idle'); tearPeer(); liveBadge(false); setTorchCapability(false); break;
+    case 'user_connected': toast('User connected — starting stream…'); setConn('connecting'); startRTC(); setChatCapable(true); appendChatSystem('User connected'); break;
+    case 'user_disconnected': toast('User disconnected'); setConn('idle'); tearPeer(); liveBadge(false); setTorchCapability(false); appendChatSystem('User disconnected'); break;
     case 'answer': if(pc)pc.setRemoteDescription(new RTCSessionDescription(msg)); break;
     case 'candidate': if(pc&&msg.candidate)pc.addIceCandidate(new RTCIceCandidate(msg.candidate)); break;
     case 'orientation': applyRemoteOrientation(msg.angle); break;
     case 'torch_capability': setTorchCapability(msg.supported); break;
     case 'torch_state': applyTorchState(msg.on); if(msg.error)toast('Torch: '+msg.error); break;
+    case 'chat': receiveChat(msg); break;
     case 'peer_ended': case 'session_expired': toast(msg.type==='session_expired'?'Session expired':'Session ended by user'); tearSession(); break;
   }
 }
@@ -1358,6 +1557,7 @@ function tearPeer(){
   if(pc){try{pc.close();}catch(_){}pc=null;}
   setVoiceCapable(false);
   setFreezeCapable(false);
+  setChatCapable(false);
   clearInterval(durInt);durInt=null;sessStart=null;
   document.getElementById('statDur').textContent='—';
   document.getElementById('statState').textContent=activeToken?'waiting':'—';
@@ -1460,6 +1660,7 @@ async function createSession(options={}){
 
 function selectSess(sess){
   activeSession=sess;activeToken=sess.token;
+  resetChatSession();
   document.getElementById('activeBadge').textContent=sess.label;
   document.getElementById('statTok').textContent=sess.token.slice(0,8)+'…';
   document.getElementById('statState').textContent='waiting';
@@ -1474,6 +1675,7 @@ function endSession(){if(!activeToken)return;sendWS({type:'end'});toast('Session
 function tearSession(){
   tearPeer();
   const t=activeToken;activeToken=null;activeSession=null;
+  resetChatSession();
   liveSessions=liveSessions.filter(s=>s.token!==t);
   document.getElementById('sessCard').classList.remove('on');
   document.getElementById('activeBadge').textContent='No session selected';
@@ -1840,6 +2042,7 @@ let aiRunning = false;
 
 function toggleAI() {
   aiOpen = !aiOpen;
+  if (aiOpen) toggleChat(false);
   document.getElementById('aiSidebar').classList.toggle('open', aiOpen);
   document.getElementById('aiBtn').classList.toggle('ai-trigger', true);
 }
@@ -1945,6 +2148,7 @@ function setAIBtns(disabled) {
 fitMediaFrame();
 updateZoomUI();
 updateOrientationToggleUI();
+updateChatUI();
 updateLeadUI();
 refreshAuthState();
 connectWS();

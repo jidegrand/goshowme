@@ -130,6 +130,64 @@
 
   .btn-end { width: 100%; background: var(--red-soft); color: var(--red); border: 1px solid rgba(229,62,62,.2); border-radius: 12px; padding: 12px; font-family: var(--font); font-size: 13px; font-weight: 500; cursor: pointer; transition: background .15s; }
   .btn-end:hover { background: rgba(229,62,62,.14); }
+  .chat-action-btn { display: flex; align-items: center; justify-content: center; gap: 7px; position: relative; }
+  .chat-action-btn svg { width: 15px; height: 15px; }
+  .overlay-btn.chat-overlay { display: flex; align-items: center; gap: 7px; position: relative; }
+  .chat-badge {
+    min-width: 17px; height: 17px; padding: 0 5px; border-radius: 999px;
+    background: var(--accent); color: #fff; font-family: var(--mono); font-size: 10px; font-weight: 700;
+    display: none; align-items: center; justify-content: center; line-height: 1;
+  }
+  .chat-badge.on { display: inline-flex; }
+
+  /* text chat */
+  .chat-panel {
+    position: fixed; left: 14px; right: 14px; bottom: 14px; z-index: 40;
+    width: auto; max-width: 390px; max-height: min(560px, 72dvh); margin: 0 auto;
+    background: rgba(255,255,255,.97); border: 1px solid var(--border); border-radius: 18px;
+    box-shadow: 0 18px 60px rgba(0,0,0,.22);
+    display: flex; flex-direction: column; overflow: hidden;
+    transform: translateY(calc(100% + 24px)); opacity: 0; pointer-events: none;
+    transition: transform .22s cubic-bezier(.4,0,.2,1), opacity .18s;
+  }
+  .chat-panel.open { transform: translateY(0); opacity: 1; pointer-events: auto; }
+  .chat-head { display: flex; align-items: center; justify-content: space-between; padding: 13px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .chat-title { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 800; letter-spacing: -.02em; }
+  .chat-title svg { width: 15px; height: 15px; color: var(--accent); }
+  .chat-close { width: 30px; height: 30px; border: none; border-radius: 8px; background: transparent; color: var(--muted); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .chat-close svg { width: 15px; height: 15px; }
+  .chat-list { flex: 1; min-height: 150px; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; scroll-behavior: smooth; }
+  .chat-empty { padding: 18px 10px; text-align: center; color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .chat-msg { max-width: 86%; padding: 8px 10px; border-radius: 12px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+  .chat-msg .meta { display: block; margin-top: 4px; font-family: var(--mono); font-size: 9.5px; color: var(--muted); opacity: .8; }
+  .chat-msg.mine { align-self: flex-end; background: var(--accent-soft); border: 1px solid var(--accent-mid); color: var(--text); }
+  .chat-msg.theirs { align-self: flex-start; background: var(--bg); border: 1px solid var(--border); color: var(--text); }
+  .chat-msg.system { align-self: center; padding: 2px 0; color: var(--muted); font-size: 11px; font-style: italic; }
+  .chat-input-wrap { border-top: 1px solid var(--border); padding: 10px; display: flex; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+  .chat-input {
+    flex: 1; min-height: 38px; max-height: 120px; resize: none;
+    border: 1px solid var(--border); border-radius: 11px; padding: 9px 10px;
+    font: inherit; font-size: 13px; line-height: 1.4; color: var(--text); background: var(--surface); outline: none;
+  }
+  .chat-input:focus { border-color: var(--accent-mid); }
+  .chat-input:disabled { opacity: .55; cursor: not-allowed; }
+  .chat-send { width: 38px; height: 38px; border: none; border-radius: 11px; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+  .chat-send:disabled { opacity: .38; cursor: not-allowed; }
+  .chat-send svg { width: 16px; height: 16px; }
+  .camera-shell.fullscreen-mode .chat-panel {
+    background: rgba(17,19,24,.94); border-color: rgba(255,255,255,.18); color: #fff;
+    left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+  .camera-shell.fullscreen-mode .chat-head,
+  .camera-shell.fullscreen-mode .chat-input-wrap { border-color: rgba(255,255,255,.14); }
+  .camera-shell.fullscreen-mode .chat-close,
+  .camera-shell.fullscreen-mode .chat-empty,
+  .camera-shell.fullscreen-mode .chat-msg .meta,
+  .camera-shell.fullscreen-mode .chat-msg.system { color: rgba(255,255,255,.64); }
+  .camera-shell.fullscreen-mode .chat-msg.mine { color: #fff; background: rgba(255,79,0,.20); border-color: rgba(255,79,0,.36); }
+  .camera-shell.fullscreen-mode .chat-msg.theirs { color: #fff; background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.16); }
+  .camera-shell.fullscreen-mode .chat-input { color: #fff; background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.16); }
+  .camera-shell.fullscreen-mode .chat-input::placeholder { color: rgba(255,255,255,.46); }
 
   /* states */
   .state-ico { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 18px; }
@@ -239,12 +297,42 @@
         <canvas id="annoCanvas"></canvas>
       </div>
       <div class="cam-overlay-actions">
+        <button class="overlay-btn chat-overlay" id="overlayChatBtn" onclick="toggleChat()">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
+          Chat
+          <span class="chat-badge" id="overlayChatBadge"></span>
+        </button>
         <button class="overlay-btn" id="overlayFullscreenBtn" onclick="toggleFullscreen()">Exit full screen</button>
         <button class="overlay-btn danger" onclick="endSession()">End session</button>
       </div>
     </div>
+    <div class="chat-panel" id="chatPanel" aria-hidden="true">
+      <div class="chat-head">
+        <div class="chat-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
+          Text chat
+        </div>
+        <button class="chat-close" type="button" onclick="toggleChat(false)" title="Close chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="chat-list" id="chatList" aria-live="polite">
+        <div class="chat-empty" id="chatEmpty">Messages from your tech will appear here.</div>
+      </div>
+      <form class="chat-input-wrap" onsubmit="sendChat(event)">
+        <textarea class="chat-input" id="chatInput" rows="1" maxlength="2000" placeholder="Message your tech" oninput="handleChatInput()" onkeydown="handleChatKeydown(event)"></textarea>
+        <button class="chat-send" id="chatSendBtn" type="submit" title="Send message">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        </button>
+      </form>
+    </div>
     <div class="info-bar">Point your phone at the screen or area you need help with.<br><strong>Your tech can see your camera feed live.</strong></div>
     <div class="camera-actions">
+      <button class="btn-secondary chat-action-btn" id="chatBtn" onclick="toggleChat()" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
+        Chat
+        <span class="chat-badge" id="chatBadge"></span>
+      </button>
       <button class="btn-secondary" id="fullscreenBtn" onclick="toggleFullscreen()">Full screen</button>
     </div>
     <button class="btn-end" onclick="endSession()">End session</button>
@@ -487,6 +575,114 @@ function connectWS(){
 }
 function sendWS(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}
 
+// ── TEXT CHAT ───────────────────────────────────────────────────────────────
+let chatOpen=false;
+let chatUnread=0;
+let chatCapable=false;
+function updateChatUI(){
+  const panel=document.getElementById('chatPanel');
+  const input=document.getElementById('chatInput');
+  const sendBtn=document.getElementById('chatSendBtn');
+  const badges=[document.getElementById('chatBadge'),document.getElementById('overlayChatBadge')];
+  if(panel){
+    panel.classList.toggle('open',chatOpen);
+    panel.setAttribute('aria-hidden',chatOpen?'false':'true');
+  }
+  badges.forEach(b=>{
+    if(!b)return;
+    b.textContent=chatUnread>9?'9+':String(chatUnread);
+    b.classList.toggle('on',chatUnread>0);
+  });
+  if(input){
+    input.disabled=!chatCapable;
+    input.placeholder=chatCapable?'Message your tech':'Waiting for your tech to connect';
+  }
+  if(sendBtn)sendBtn.disabled=!chatCapable||!input||!input.value.trim();
+}
+function toggleChat(force){
+  chatOpen=typeof force==='boolean'?force:!chatOpen;
+  if(chatOpen){
+    chatUnread=0;
+    setTimeout(()=>document.getElementById('chatInput')?.focus(),0);
+  }
+  updateChatUI();
+}
+function setChatCapable(on){
+  chatCapable=!!on;
+  updateChatUI();
+}
+function resetChatSession(){
+  chatOpen=false;
+  chatUnread=0;
+  chatCapable=false;
+  const list=document.getElementById('chatList');
+  if(list)list.innerHTML='<div class="chat-empty" id="chatEmpty">Messages from your tech will appear here.</div>';
+  const input=document.getElementById('chatInput');
+  if(input){
+    input.value='';
+    input.style.height='';
+  }
+  updateChatUI();
+}
+function handleChatInput(){
+  const input=document.getElementById('chatInput');
+  if(input){
+    input.style.height='auto';
+    input.style.height=Math.min(input.scrollHeight,120)+'px';
+  }
+  updateChatUI();
+}
+function handleChatKeydown(e){
+  if(e.key==='Enter'&&!e.shiftKey){
+    e.preventDefault();
+    sendChat(e);
+  }
+}
+function sendChat(e){
+  if(e)e.preventDefault();
+  const input=document.getElementById('chatInput');
+  const text=(input?.value||'').trim();
+  if(!text||!chatCapable)return;
+  sendWS({type:'chat',text});
+  input.value='';
+  handleChatInput();
+}
+function receiveChat(msg){
+  const text=typeof msg.text==='string'?msg.text.trim():'';
+  if(!text)return;
+  const mine=msg.from==='user';
+  appendChatMessage(text,mine,msg.ts);
+  if(!mine&&!chatOpen)chatUnread++;
+  updateChatUI();
+}
+function appendChatMessage(text,mine,ts){
+  const list=document.getElementById('chatList');
+  if(!list)return;
+  document.getElementById('chatEmpty')?.remove();
+  const item=document.createElement('div');
+  item.className='chat-msg '+(mine?'mine':'theirs');
+  item.textContent=text;
+  const metaEl=document.createElement('span');
+  metaEl.className='meta';
+  metaEl.textContent=(mine?'You':'Tech')+' · '+chatTime(ts);
+  item.appendChild(metaEl);
+  list.appendChild(item);
+  list.scrollTop=list.scrollHeight;
+}
+function appendChatSystem(text){
+  const list=document.getElementById('chatList');
+  if(!list)return;
+  document.getElementById('chatEmpty')?.remove();
+  const item=document.createElement('div');
+  item.className='chat-msg system';
+  item.textContent=text;
+  list.appendChild(item);
+  list.scrollTop=list.scrollHeight;
+}
+function chatTime(ts){
+  return new Date(ts||Date.now()).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+}
+
 function normalizeOrientationAngle(angle){
   const normalized=((Number(angle)||0)%360+360)%360;
   if(normalized>=315||normalized<45)return 0;
@@ -559,11 +755,15 @@ async function handle(msg){
   switch(msg.type){
     case 'joined':
       document.getElementById('byName').textContent=msg.label||'Support tech';
+      setChatCapable(!!msg.techOnline);
       startTTL(msg.expiresAt); break;
+    case 'tech_connected': setChatCapable(true); appendChatSystem('Tech connected'); break;
+    case 'tech_disconnected': setChatCapable(false); appendChatSystem('Tech disconnected'); break;
     case 'offer': await handleOffer(msg); sendTorchCapability(); break;
     case 'candidate': if(pc&&msg.candidate)pc.addIceCandidate(new RTCIceCandidate(msg.candidate)); break;
     case 'annotate': handleAnno(msg); break;
     case 'torch': await setTorch(!!msg.on); break;
+    case 'chat': receiveChat(msg); break;
     case 'peer_ended': case 'session_expired': cleanup(); show('scrEnded'); break;
     case 'error': expire('Error',msg.message||'Something went wrong.'); break;
   }
@@ -601,6 +801,7 @@ async function handleOffer(offer){
 
 function endSession(){sendWS({type:'end'});cleanup();show('scrEnded');}
 function cleanup(){
+  resetChatSession();
   clearInterval(ttlTimer);
   try{screen.orientation.unlock();}catch(_){}
   if(localStream)localStream.getTracks().forEach(t=>t.stop());
@@ -795,6 +996,7 @@ window.addEventListener('resize',()=>{
 });
 
 applyCameraView();
+updateChatUI();
 </script>
 </body>
 </html>

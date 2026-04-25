@@ -773,13 +773,17 @@ wss.on('connection', (ws, req) => {
         session.techWs = ws;
         session.techAlive = true;
         safeSend(ws, { type: 'joined', role: 'tech', label: session.label, expiresAt: session.createdAt + session.ttl });
-        if (session.userWs) safeSend(ws, { type: 'user_connected' });
+        if (session.userWs) {
+          safeSend(ws, { type: 'user_connected' });
+          safeSend(session.userWs, { type: 'tech_connected' });
+        }
       }
 
       if (role === 'user') {
         session.userWs = ws;
-        safeSend(ws, { type: 'joined', role: 'user', label: session.label, expiresAt: session.createdAt + session.ttl });
+        safeSend(ws, { type: 'joined', role: 'user', label: session.label, expiresAt: session.createdAt + session.ttl, techOnline: !!session.techWs });
         if (session.techWs) {
+          safeSend(ws, { type: 'tech_connected' });
           safeSend(session.techWs, { type: 'user_connected' });
           // Prompt tech to create WebRTC offer
           safeSend(ws, { type: 'ready_to_offer' });
@@ -796,6 +800,17 @@ wss.on('connection', (ws, req) => {
 
     if (['offer', 'answer', 'candidate', 'annotate', 'recording_started', 'recording_stopped', 'orientation', 'torch', 'torch_capability', 'torch_state'].includes(msg.type)) {
       safeSend(peer, msg);
+      return;
+    }
+
+    if (msg.type === 'chat') {
+      // Server stamps sender role + timestamp so it can't be spoofed by a misbehaving client.
+      const text = typeof msg.text === 'string' ? msg.text.slice(0, 2000) : '';
+      if (!text.trim()) return;
+      const out = { type: 'chat', text, from: ws._role || 'unknown', ts: Date.now() };
+      safeSend(peer, out);
+      // Echo back to sender so both sides render the same message ordering from the server clock.
+      safeSend(ws, out);
       return;
     }
 
