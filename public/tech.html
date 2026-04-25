@@ -12,11 +12,11 @@
     --bg: #0a0b0e;
     --surface: #101318;
     --surface2: #171b24;
-    --border: rgba(255,255,255,0.07);
-    --border-hi: rgba(255,255,255,0.13);
+    --border: rgba(255,255,255,0.12);
+    --border-hi: rgba(255,255,255,0.20);
     --text: #edeef2;
-    --muted: #60656f;
-    --dim: #353a45;
+    --muted: #a4abb6;
+    --dim: #6b7280;
     --accent: #FF4F00;
     --accent-dim: rgba(255,79,0,0.11);
     --accent-glow: rgba(255,79,0,0.22);
@@ -109,8 +109,8 @@
   .live-badge.on { display: flex; }
   .live-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red); animation: blink 1.2s infinite; }
   .vtright { display: flex; align-items: center; gap: 5px; }
-  .ico-btn { width: 31px; height: 31px; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: color .15s, border-color .15s; }
-  .ico-btn:hover { color: var(--text); border-color: var(--border-hi); }
+  .ico-btn { width: 31px; height: 31px; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: color .15s, border-color .15s, background .15s; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
+  .ico-btn:hover { color: var(--text); border-color: var(--border-hi); background: var(--surface); }
   .ico-btn:disabled { opacity: .35; cursor: not-allowed; }
   .ico-btn.danger:hover { color: var(--red); border-color: var(--red); }
   .ico-btn svg { width: 14px; height: 14px; }
@@ -324,6 +324,7 @@
     color: var(--muted);
     transition: color .15s, border-color .15s, background .15s;
     flex-shrink: 0;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
   }
   .anno-btn svg { width: 14px; height: 14px; }
   .anno-btn:hover { color: var(--text); border-color: var(--border-hi); }
