@@ -65,6 +65,7 @@ public/
 | `PORT`               | `3000`                   | HTTP + WebSocket port                 |
 | `BASE_URL`           | `http://localhost:3000`  | Public URL for generated links        |
 | `ANTHROPIC_API_KEY`  | *(required for Vision AI)* | Your Anthropic API key — never expose this client-side |
+| `ANTHROPIC_VISION_MODEL` | `claude-sonnet-4-20250514` | Optional Vision AI model override |
 
 ## Quick start
 
@@ -74,6 +75,21 @@ ANTHROPIC_API_KEY=sk-ant-... node server.js
 ```
 
 Get your API key at: https://console.anthropic.com
+
+## Vision AI response contract
+
+`POST /api/ai/analyze` returns a normalized support object:
+
+```json
+{
+  "confidence": 0.87,
+  "observations": ["Router is powered on"],
+  "possibleIssue": "ISP connectivity issue or WAN cable problem",
+  "recommendedNextSteps": ["Check WAN/fiber connection"]
+}
+```
+
+The technician panel renders this as a structured card with copy-to-clipboard and optional Zendesk internal-note actions.
 
 ## Extending
 

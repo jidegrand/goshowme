@@ -322,7 +322,7 @@
   }
   .ai-result-mode {
     display: flex; align-items: center; gap: 5px;
-    font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: .05em;
+    font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 0;
   }
   .ai-result-mode-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
   .ai-result-time { font-family: var(--mono); font-size: 9px; color: var(--dim); }
@@ -332,6 +332,30 @@
     filter: brightness(.85);
   }
   .ai-result-body { padding: 10px 12px; }
+  .ai-disclaimer {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 7px; margin-bottom: 10px;
+    border-radius: 6px; background: rgba(255,184,77,.10);
+    border: 1px solid rgba(255,184,77,.24);
+    color: var(--amber); font-family: var(--mono); font-size: 9px; line-height: 1.35;
+  }
+  .ai-result-section {
+    padding: 9px 0; border-top: 1px solid rgba(255,255,255,.08);
+  }
+  .ai-disclaimer + .ai-result-section { border-top: none; padding-top: 0; }
+  .ai-result-section strong {
+    display: block; margin-bottom: 6px;
+    color: var(--text); font-size: 11px; line-height: 1.3;
+  }
+  .ai-confidence-row {
+    display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 9px;
+  }
+  .ai-confidence-value { color: var(--accent); font-family: var(--mono); font-size: 15px; font-weight: 700; }
+  .ai-confidence-bar { height: 5px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+  .ai-confidence-fill { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+  .ai-result-list { margin: 0; padding-left: 18px; color: var(--muted); font-size: 11.5px; line-height: 1.55; }
+  .ai-result-list li + li { margin-top: 4px; }
+  .ai-result-issue { margin: 0; color: var(--muted); font-size: 11.5px; line-height: 1.55; }
   .ai-result-text {
     font-size: 12px; color: var(--text); line-height: 1.65;
     white-space: pre-wrap; word-break: break-word;
@@ -340,13 +364,15 @@
     background: rgba(255,79,0,.15); color: var(--accent);
     border-radius: 3px; padding: 0 3px; font-weight: 600;
   }
-  .ai-copy-row { display: flex; justify-content: flex-end; margin-top: 8px; }
+  .ai-copy-row { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 8px; }
   .ai-copy-btn {
     font-family: var(--mono); font-size: 10px; color: var(--muted);
-    background: none; border: none; cursor: pointer; padding: 2px 0;
-    transition: color .15s;
+    background: rgba(255,255,255,.04); border: 1px solid var(--border);
+    border-radius: 6px; cursor: pointer; padding: 6px 8px;
+    transition: color .15s, border-color .15s, background .15s;
   }
-  .ai-copy-btn:hover { color: var(--accent); }
+  .ai-copy-btn:hover:not(:disabled) { color: var(--accent); border-color: rgba(255,79,0,.35); background: var(--accent-dim); }
+  .ai-copy-btn:disabled { opacity: .45; cursor: not-allowed; }
 
   /* AI toolbar button — special orange glow */
   .ico-btn.ai-trigger { border-color: rgba(255,79,0,.3); color: var(--accent); }
@@ -1998,31 +2024,6 @@ function showAnnoToolbar(on) {
 }
 
 // ── VISION AI ────────────────────────────────────────────────────────────────
-const AI_PROMPTS = {
-  analyze: `You are a tech support AI assistant watching a live camera feed during a remote support session.
-Describe what you see in 2-3 sentences. Focus on: what device or screen is visible, its current state, and any obvious issues.
-Be concise and actionable. Start directly with what you observe.`,
-
-  readscreen: `You are a tech support AI assistant. Extract ALL visible text from this image.
-Pay special attention to: error codes, error messages, warning dialogs, status messages, loading screens, BSOD codes, boot messages.
-Format extracted text clearly. If you see an error code, put it on its own line prefixed with "ERROR:".
-If the screen appears blank or off, say so clearly.`,
-
-  hardware: `You are a tech support AI assistant inspecting physical hardware via a camera feed.
-Describe the physical state of any hardware you can see. Look for:
-- LED indicator colors and patterns (green=good, amber=warning, red=error, blinking patterns)
-- Cable connections — are they fully seated? Any visibly loose cables?
-- Physical damage, dust buildup, bent pins, or abnormalities
-- Drive bays — are any empty or showing eject indicators?
-- Port occupancy — what's plugged in where?
-Be specific about locations (e.g. "top-left drive bay", "rear USB port").`,
-
-  suggest: `You are a senior tech support engineer watching a live camera feed of a user's device.
-Based on what you see, suggest the single most useful next step the tech should take or instruct the user to do.
-Be direct and specific — give an actual instruction, not a vague recommendation.
-Format: one clear action sentence, then a brief reason why in parentheses.`,
-};
-
 const AI_LABELS = {
   analyze:    'Analyzing frame…',
   readscreen: 'Reading screen text…',
@@ -2033,12 +2034,14 @@ const AI_LABELS = {
 const AI_MODES = {
   analyze:    'ANALYZE',
   readscreen: 'READ SCREEN',
-  hardware:   'HARDWARE',
+  hardware:   'INSPECT HARDWARE',
   suggest:    'SUGGEST',
 };
 
 let aiOpen = false;
 let aiRunning = false;
+let aiResultSeq = 0;
+const aiResultStore = new Map();
 
 function toggleAI() {
   aiOpen = !aiOpen;
@@ -2078,37 +2081,100 @@ async function runAI(mode) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
-            { type: 'text',  text: AI_PROMPTS[mode] }
-          ]
-        }]
+        mode,
+        imageBase64: base64,
+        mediaType: 'image/jpeg',
+        context: getVisionContext(),
       })
     });
 
     const data = await response.json();
-    const text = data.content?.find(b => b.type === 'text')?.text || 'No response received.';
+    if (!response.ok) throw new Error(data.error || `Vision AI request failed (${response.status})`);
     thinking.classList.remove('on');
-    insertAIResult(mode, text, thumbUrl, ts);
+    insertAIResult(mode, normalizeVisionResult(data), thumbUrl, ts);
   } catch (err) {
     thinking.classList.remove('on');
-    insertAIResult(mode, `Error: ${err.message}. Check your API connection.`, null, ts);
+    insertAIResult(mode, {
+      confidence: 0,
+      observations: [`Vision AI request failed: ${err.message}`],
+      possibleIssue: 'AI analysis is unavailable right now.',
+      recommendedNextSteps: ['Check the server API key and network connection.', 'Try the analysis again.', 'Continue troubleshooting from the live camera feed.']
+    }, null, ts);
   }
 
   aiRunning = false;
   setAIBtns(false);
 }
 
-function insertAIResult(mode, text, thumbUrl, ts) {
-  const results = document.getElementById('aiResults');
+function getVisionContext() {
+  const ctx = window.goshowmeVisionContext || {};
+  return {
+    ticketText: ctx.ticketText || window.goshowmeTicketText || '',
+    deviceType: ctx.deviceType || window.goshowmeDeviceType || '',
+    previousNotes: ctx.previousNotes || window.goshowmePreviousNotes || '',
+  };
+}
 
-  // Highlight error codes in red text
-  const highlighted = text.replace(/(ERROR:|0x[0-9A-Fa-f]+|BSOD|STOP:?\s*0x\w+)/g,
-    '<span class="ai-highlight">$1</span>');
+function escapeHTML(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  }[ch]));
+}
+
+function toVisionList(value, fallback) {
+  const source = Array.isArray(value) ? value : fallback;
+  return source.map(item => String(item || '').trim()).filter(Boolean);
+}
+
+function normalizeVisionResult(result) {
+  const confidence = Number(result?.confidence);
+  return {
+    confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0.5,
+    observations: toVisionList(result?.observations, ['No clear visual observations were returned.']).slice(0, 6),
+    possibleIssue: String(result?.possibleIssue || 'No clear issue identified from the image.').trim(),
+    recommendedNextSteps: toVisionList(result?.recommendedNextSteps, ['Verify the visible details with the user.']).slice(0, 3),
+  };
+}
+
+function formatVisionResult(result) {
+  const r = normalizeVisionResult(result);
+  const observations = r.observations.map(item => `- ${item}`).join('\n');
+  const steps = r.recommendedNextSteps.map((item, index) => `${index + 1}. ${item}`).join('\n');
+  return `GoShowMe Vision Analysis
+
+Confidence: ${Math.round(r.confidence * 100)}%
+
+Observations:
+${observations}
+
+Possible Issue:
+${r.possibleIssue}
+
+Recommended Next Steps:
+${steps}
+
+AI-assisted suggestion - verify before action`;
+}
+
+function renderVisionList(items, ordered) {
+  const tag = ordered ? 'ol' : 'ul';
+  return `<${tag} class="ai-result-list">${items.map(item => `<li>${escapeHTML(item)}</li>`).join('')}</${tag}>`;
+}
+
+function insertAIResult(mode, result, thumbUrl, ts) {
+  const results = document.getElementById('aiResults');
+  const normalized = normalizeVisionResult(result);
+  const resultId = `ai-${Date.now()}-${++aiResultSeq}`;
+  aiResultStore.set(resultId, normalized);
+  if (aiResultStore.size > 25) {
+    const oldest = aiResultStore.keys().next().value;
+    aiResultStore.delete(oldest);
+  }
+  const confidencePct = Math.round(normalized.confidence * 100);
 
   const card = document.createElement('div');
   card.className = 'ai-result-card';
@@ -2119,9 +2185,29 @@ function insertAIResult(mode, text, thumbUrl, ts) {
     </div>
     ${thumbUrl ? `<img class="ai-result-thumb" src="${thumbUrl}" alt="Captured frame">` : ''}
     <div class="ai-result-body">
-      <div class="ai-result-text">${highlighted}</div>
+      <div class="ai-disclaimer">AI-assisted suggestion - verify before action</div>
+      <div class="ai-result-section">
+        <strong>Confidence</strong>
+        <div class="ai-confidence-row">
+          <div class="ai-confidence-value">${confidencePct}%</div>
+          <div class="ai-confidence-bar"><span class="ai-confidence-fill" style="width:${confidencePct}%"></span></div>
+        </div>
+      </div>
+      <div class="ai-result-section">
+        <strong>Observations</strong>
+        ${renderVisionList(normalized.observations, false)}
+      </div>
+      <div class="ai-result-section">
+        <strong>Possible Issue</strong>
+        <p class="ai-result-issue">${escapeHTML(normalized.possibleIssue)}</p>
+      </div>
+      <div class="ai-result-section">
+        <strong>Recommended Next Steps</strong>
+        ${renderVisionList(normalized.recommendedNextSteps, true)}
+      </div>
       <div class="ai-copy-row">
-        <button class="ai-copy-btn" onclick="copyAIResult(this, ${JSON.stringify(text)})">Copy text</button>
+        <button class="ai-copy-btn" type="button" onclick="copyAIResult(this, '${resultId}')">Copy to clipboard</button>
+        <button class="ai-copy-btn" type="button" onclick="addAIResultAsInternalNote(this, '${resultId}')">Add as internal note</button>
       </div>
     </div>
   `;
@@ -2131,11 +2217,106 @@ function insertAIResult(mode, text, thumbUrl, ts) {
   results.insertBefore(card, thinking.nextSibling);
 }
 
-function copyAIResult(btn, text) {
-  navigator.clipboard.writeText(text).then(() => {
-    btn.textContent = 'Copied!';
-    setTimeout(() => btn.textContent = 'Copy text', 1500);
-  });
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.opacity = '0';
+  document.body.appendChild(area);
+  area.select();
+  document.execCommand('copy');
+  area.remove();
+}
+
+function flashButton(btn, text, resetText) {
+  btn.textContent = text;
+  setTimeout(() => btn.textContent = resetText, 1500);
+}
+
+async function copyAIResult(btn, resultId) {
+  const result = aiResultStore.get(resultId);
+  if (!result) return toast('Vision result not found');
+  try {
+    await copyTextToClipboard(formatVisionResult(result));
+    flashButton(btn, 'Copied!', 'Copy to clipboard');
+  } catch (err) {
+    toast('Could not copy result');
+  }
+}
+
+let zendeskClient = null;
+
+function getZendeskClient() {
+  if (zendeskClient) return zendeskClient;
+  if (window.client && typeof window.client.request === 'function') {
+    zendeskClient = window.client;
+    return zendeskClient;
+  }
+  if (window.ZAFClient && typeof window.ZAFClient.init === 'function') {
+    try {
+      zendeskClient = window.ZAFClient.init();
+      return zendeskClient;
+    } catch (_) {}
+  }
+  return null;
+}
+
+async function getZendeskTicketId(client) {
+  if (window.ticketId) return window.ticketId;
+  if (!client || typeof client.get !== 'function') return null;
+  const data = await client.get('ticket.id');
+  if (typeof data === 'string' || typeof data === 'number') return data;
+  return data?.['ticket.id'] || data?.ticket?.id || null;
+}
+
+async function addAIResultAsInternalNote(btn, resultId) {
+  const result = aiResultStore.get(resultId);
+  if (!result) return toast('Vision result not found');
+
+  const client = getZendeskClient();
+  const noteBody = formatVisionResult(result);
+  if (!client || typeof client.request !== 'function') {
+    try {
+      await copyTextToClipboard(noteBody);
+      toast('Zendesk unavailable; note copied');
+    } catch (_) {
+      toast('Zendesk unavailable');
+    }
+    return;
+  }
+
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = 'Adding...';
+  try {
+    const ticketId = await getZendeskTicketId(client);
+    if (!ticketId) throw new Error('Ticket ID unavailable');
+    await client.request({
+      url: `/api/v2/tickets/${ticketId}.json`,
+      type: 'PUT',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        ticket: {
+          comment: {
+            public: false,
+            body: noteBody,
+          },
+        },
+      }),
+    });
+    toast('Internal note added');
+    flashButton(btn, 'Note added', originalText);
+  } catch (err) {
+    toast(err.message || 'Could not add internal note');
+    btn.textContent = originalText;
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function setAIBtns(disabled) {
