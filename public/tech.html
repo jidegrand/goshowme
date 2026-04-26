@@ -286,7 +286,11 @@
   .ai-btn svg { width: 14px; height: 14px; color: var(--accent); flex-shrink: 0; }
   .ai-btn-sub { font-size: 10px; color: var(--muted); font-weight: 400; margin-top: 1px; font-family: var(--mono); }
 
-  .ai-results { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .ai-results { flex: 1 1 0; min-height: 0; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  .ai-results::-webkit-scrollbar { width: 8px; }
+  .ai-results::-webkit-scrollbar-track { background: transparent; }
+  .ai-results::-webkit-scrollbar-thumb { background: rgba(255,255,255,.10); border-radius: 4px; }
+  .ai-results::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.18); }
   .ai-empty {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     height: 100%; gap: 10px; color: var(--dim); text-align: center;
