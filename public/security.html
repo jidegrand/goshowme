@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security — GoShowMe</title>
+<meta name="description" content="How GoShowMe protects camera streams, accounts, and data: peer-to-peer video, transit encryption, no-recording posture, and how to report a vulnerability.">
+<link rel="canonical" href="https://goshowmeapp.com/security">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="theme-color" content="#FF4F00">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Security — GoShowMe">
+<meta property="og:description" content="Peer-to-peer video, transit encryption, and no-recording posture. How to report a vulnerability.">
+<meta property="og:url" content="https://goshowmeapp.com/security">
+<meta property="og:image" content="https://goshowmeapp.com/og-image.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --orange: #FF4F00;
+  --orange-dim: rgba(255,79,0,0.12);
+  --green: #00C389;
+  --amber: #ffaa40;
+  --ink: #0a0b0e;
+  --ink2: #13151a;
+  --ink3: #1c2028;
+  --border-dark: rgba(255,255,255,0.08);
+  --text-dark: #edeef2;
+  --text-muted-dark: #9aa3b2;
+  --text-dim-dark: #5c6270;
+  --font: 'Plus Jakarta Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+html { scroll-behavior: smooth; }
+body { font-family: var(--font); background: var(--ink); color: var(--text-dark); line-height: 1.65; }
+nav { position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 0 5vw; height: 60px; border-bottom: 1px solid var(--border-dark); background: rgba(10,11,14,0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.nav-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; }
+.nav-mark { width: 28px; height: 28px; background: var(--orange); border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.nav-mark svg { width: 15px; height: 15px; }
+.nav-word { font-size: 14px; font-weight: 800; }
+.nw-go { color: var(--orange); }
+.nw-rest { color: var(--text-dark); }
+.nw-me { color: var(--text-dark); opacity: 0.3; }
+.nav-back { font-size: 13px; color: var(--text-muted-dark); text-decoration: none; }
+.nav-back:hover { color: var(--text-dark); }
+
+.legal-shell { max-width: 820px; margin: 0 auto; padding: 64px 5vw 96px; }
+.legal-eyebrow { font-family: var(--mono); font-size: 11px; color: var(--orange); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+h1 { font-size: clamp(36px, 5vw, 56px); font-weight: 800; line-height: 1.05; letter-spacing: -1px; margin-bottom: 18px; }
+.legal-meta { font-family: var(--mono); font-size: 12px; color: var(--text-dim-dark); margin-bottom: 40px; }
+.legal-lede { font-size: 17px; color: var(--text-muted-dark); margin-bottom: 48px; line-height: 1.7; }
+h2 { font-size: 22px; font-weight: 700; letter-spacing: -.3px; margin-top: 48px; margin-bottom: 14px; }
+h3 { font-size: 16px; font-weight: 700; margin-top: 22px; margin-bottom: 8px; }
+p { color: var(--text-muted-dark); margin-bottom: 14px; }
+.legal-shell ul { color: var(--text-muted-dark); padding-left: 20px; margin-bottom: 18px; }
+.legal-shell li { margin-bottom: 8px; }
+strong { color: var(--text-dark); font-weight: 600; }
+a { color: var(--orange); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.posture-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 28px 0 20px; }
+.posture-card {
+  background: var(--ink2); border: 1px solid var(--border-dark); border-radius: 12px;
+  padding: 18px;
+}
+.posture-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 20px; margin-bottom: 10px;
+}
+.posture-pill.live { background: rgba(0,195,137,0.12); color: var(--green); border: 1px solid rgba(0,195,137,0.30); }
+.posture-pill.plan { background: rgba(255,170,64,0.12); color: var(--amber); border: 1px solid rgba(255,170,64,0.30); }
+.posture-pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.posture-card strong { display: block; font-size: 14px; margin-bottom: 6px; color: var(--text-dark); }
+.posture-card span { font-size: 13px; color: var(--text-muted-dark); line-height: 1.55; }
+
+.contact-card {
+  margin-top: 40px;
+  background: linear-gradient(180deg, rgba(255,79,0,0.08), rgba(255,79,0,0.02));
+  border: 1px solid rgba(255,79,0,0.20);
+  border-radius: 14px; padding: 24px;
+}
+.contact-card h3 { margin-top: 0; }
+
+footer { border-top: 1px solid var(--border-dark); padding: 40px 5vw; text-align: center; color: var(--text-dim-dark); font-size: 12px; font-family: var(--mono); }
+footer a { color: var(--text-muted-dark); margin: 0 10px; text-decoration: none; }
+footer a:hover { color: var(--text-dark); }
+</style>
+</head>
+<body>
+<nav>
+  <a class="nav-logo" href="/">
+    <div class="nav-mark"><svg viewBox="0 0 15 15" fill="none"><rect x="1" y="2.5" width="9" height="7" rx="2" fill="white"/><path d="M10 6L14 4V11L10 9V6Z" fill="white"/></svg></div>
+    <span class="nav-word"><span class="nw-go">Go</span><span class="nw-rest">Show</span><span class="nw-me">Me</span></span>
+  </a>
+  <a class="nav-back" href="/">&larr; Back to home</a>
+</nav>
+
+<main class="legal-shell">
+  <div class="legal-eyebrow">Security</div>
+  <h1>How we protect the camera, the account, and the call.</h1>
+  <div class="legal-meta">Last updated: April 26, 2026</div>
+  <p class="legal-lede">GoShowMe is built around a strict no-recording posture and modern WebRTC primitives. This page is the honest, unsweetened version of where we are today and what we are working on next.</p>
+
+  <h2>Architecture</h2>
+  <p>GoShowMe is a peer-to-peer WebRTC application with a thin signaling and session-management backend. The customer's phone establishes a direct video and audio connection to the tech's browser. The signaling channel coordinates the connection but never carries the media.</p>
+
+  <h2>Current posture</h2>
+  <div class="posture-grid">
+    <div class="posture-card">
+      <span class="posture-pill live">Live</span>
+      <strong>Encrypted media in transit</strong>
+      <span>WebRTC mandates DTLS-SRTP for video and audio. Streams are encrypted between the two browsers.</span>
+    </div>
+    <div class="posture-card">
+      <span class="posture-pill live">Live</span>
+      <strong>HTTPS-only signaling</strong>
+      <span>All HTTP and WebSocket traffic to our backend is TLS-encrypted.</span>
+    </div>
+    <div class="posture-card">
+      <span class="posture-pill live">Live</span>
+      <strong>No video recording</strong>
+      <span>We do not record, persist, or post-process the camera stream.</span>
+    </div>
+    <div class="posture-card">
+      <span class="posture-pill live">Live</span>
+      <strong>Peer-to-peer first</strong>
+      <span>Streams travel direct between browsers when a route is available. TURN relay is used only when NAT traversal fails.</span>
+    </div>
+    <div class="posture-card">
+      <span class="posture-pill live">Live</span>
+      <strong>One-time session links</strong>
+      <span>Each session has a unique token with an expiration window chosen by the tech.</span>
+    </div>
+    <div class="posture-card">
+      <span class="posture-pill live">Live</span>
+      <strong>Camera consent screen</strong>
+      <span>Customers see who is asking and must explicitly allow the camera in their browser.</span>
+    </div>
+    <div class="posture-card">
+      <span class="posture-pill live">Live</span>
+      <strong>Hashed passwords</strong>
+      <span>Account passwords are stored with a strong hash. We never see them in plain text.</span>
+    </div>
+    <div class="posture-card">
+      <span class="posture-pill plan">Planned</span>
+      <strong>SSO sign-in</strong>
+      <span>Google and Microsoft SSO for tech accounts.</span>
+    </div>
+    <div class="posture-card">
+      <span class="posture-pill plan">Planned</span>
+      <strong>SOC 2 Type II</strong>
+      <span>Formal third-party attestation. We are starting the readiness program.</span>
+    </div>
+    <div class="posture-card">
+      <span class="posture-pill plan">Planned</span>
+      <strong>HIPAA / BAA</strong>
+      <span>Available on Team plans for healthcare buyers.</span>
+    </div>
+  </div>
+
+  <h2>Vision AI and third parties</h2>
+  <p>When you press a Vision AI button, a still frame and your prompt are forwarded to OpenAI through our backend. We do not retain the frame or the response. OpenAI's API data policy states that data submitted via the API is not used to train their models. If your environment cannot send camera frames to a third-party LLM, do not enable the Vision AI features.</p>
+
+  <h2>Subprocessors</h2>
+  <p>We use a small set of subprocessors strictly to operate the service:</p>
+  <ul>
+    <li><strong>Railway</strong> &mdash; application hosting and signaling.</li>
+    <li><strong>Cloudflare</strong> or <strong>Metered</strong> &mdash; TURN relay for fallback connectivity.</li>
+    <li><strong>OpenAI</strong> &mdash; Vision AI analysis (only when invoked).</li>
+    <li>Our payment processor &mdash; for paid plans (data limited to billing identifiers).</li>
+  </ul>
+
+  <h2>Account security</h2>
+  <ul>
+    <li>Password hashes use a modern, salted algorithm.</li>
+    <li>Sessions are bound to a bearer token stored in browser local storage.</li>
+    <li>Sign-out invalidates the token on the server.</li>
+    <li>You can change your password at any time from the dashboard.</li>
+  </ul>
+
+  <h2>Data retention</h2>
+  <ul>
+    <li>Camera streams: not stored.</li>
+    <li>Chat messages: relayed in transit, not stored after the session ends.</li>
+    <li>Annotations and snapshots: stored locally on the tech's device, not on our servers, unless you explicitly export.</li>
+    <li>Session metadata (label, expiration, usage counter): kept on the tech account for usage tracking.</li>
+    <li>Account data: retained while the account is active; deleted within 60 days of account deletion.</li>
+  </ul>
+
+  <div class="contact-card">
+    <h3>Report a vulnerability</h3>
+    <p>If you believe you have found a security issue, please send a description to <a href="mailto:security@goshowmeapp.com">security@goshowmeapp.com</a>. Include reproduction steps where possible. We will acknowledge within 72 hours and work with you in good faith. Please do not publicly disclose the issue until we have a chance to investigate and remediate.</p>
+  </div>
+
+  <h2>Bug bounty</h2>
+  <p>We do not currently run a paid bounty program but we credit responsible reporters in our changelog if they wish to be named.</p>
+
+  <h2>Status</h2>
+  <p>For incidents and uptime updates, write to <a href="mailto:hi@goshowmeapp.com">hi@goshowmeapp.com</a>. A formal status page is on the roadmap.</p>
+</main>
+
+<footer>
+  <a href="/">Home</a>
+  <a href="/privacy">Privacy</a>
+  <a href="/terms">Terms</a>
+  <a href="/security">Security</a>
+  <a href="mailto:hi@goshowmeapp.com">Contact</a>
+  <div style="margin-top:14px;">&copy; 2026 GoShowMe &middot; goshowmeapp.com</div>
+</footer>
+</body>
+</html>

@@ -788,6 +788,9 @@ const httpServer = http.createServer((req, res) => {
   else if (filePath.startsWith('/dashboard')) filePath = '/tech.html';
   else if (filePath.startsWith('/join/')) filePath = '/user.html';
   else if (filePath === '/vs-teamviewer') filePath = '/vs-teamviewer.html';
+  else if (filePath === '/privacy') filePath = '/privacy.html';
+  else if (filePath === '/terms') filePath = '/terms.html';
+  else if (filePath === '/security') filePath = '/security.html';
 
   const fullPath = path.join(__dirname, 'public', filePath);
   const ext = path.extname(fullPath);

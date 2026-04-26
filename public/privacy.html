@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy — GoShowMe</title>
+<meta name="description" content="GoShowMe privacy policy: what we collect, what we don't, how camera streams are handled, and how to contact us about your data.">
+<link rel="canonical" href="https://goshowmeapp.com/privacy">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="theme-color" content="#FF4F00">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Privacy — GoShowMe">
+<meta property="og:description" content="What GoShowMe collects, what we don't, and how camera streams are handled.">
+<meta property="og:url" content="https://goshowmeapp.com/privacy">
+<meta property="og:image" content="https://goshowmeapp.com/og-image.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --orange: #FF4F00;
+  --orange-dim: rgba(255,79,0,0.12);
+  --orange-hover: #e64500;
+  --ink: #0a0b0e;
+  --ink2: #13151a;
+  --ink3: #1c2028;
+  --border-dark: rgba(255,255,255,0.08);
+  --text-dark: #edeef2;
+  --text-muted-dark: #9aa3b2;
+  --text-dim-dark: #5c6270;
+  --font: 'Plus Jakarta Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+html { scroll-behavior: smooth; }
+body { font-family: var(--font); background: var(--ink); color: var(--text-dark); line-height: 1.65; }
+
+nav {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 5vw; height: 60px;
+  border-bottom: 1px solid var(--border-dark);
+  background: rgba(10,11,14,0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.nav-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; }
+.nav-mark { width: 28px; height: 28px; background: var(--orange); border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.nav-mark svg { width: 15px; height: 15px; }
+.nav-word { font-size: 14px; font-weight: 800; }
+.nw-go { color: var(--orange); }
+.nw-rest { color: var(--text-dark); }
+.nw-me { color: var(--text-dark); opacity: 0.3; }
+.nav-back { font-size: 13px; color: var(--text-muted-dark); text-decoration: none; }
+.nav-back:hover { color: var(--text-dark); }
+
+.legal-shell { max-width: 760px; margin: 0 auto; padding: 64px 5vw 96px; }
+.legal-eyebrow { font-family: var(--mono); font-size: 11px; color: var(--orange); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+h1 { font-size: clamp(36px, 5vw, 56px); font-weight: 800; line-height: 1.05; letter-spacing: -1px; margin-bottom: 18px; }
+.legal-meta { font-family: var(--mono); font-size: 12px; color: var(--text-dim-dark); margin-bottom: 40px; }
+.legal-lede { font-size: 17px; color: var(--text-muted-dark); margin-bottom: 48px; line-height: 1.7; }
+
+h2 { font-size: 22px; font-weight: 700; letter-spacing: -.3px; margin-top: 44px; margin-bottom: 14px; color: var(--text-dark); }
+h3 { font-size: 16px; font-weight: 700; margin-top: 22px; margin-bottom: 8px; color: var(--text-dark); }
+p { color: var(--text-muted-dark); margin-bottom: 14px; }
+.legal-shell ul { color: var(--text-muted-dark); padding-left: 20px; margin-bottom: 18px; }
+.legal-shell li { margin-bottom: 8px; }
+strong { color: var(--text-dark); font-weight: 600; }
+a { color: var(--orange); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.note {
+  background: var(--ink2); border: 1px solid var(--border-dark);
+  border-left: 3px solid var(--orange);
+  border-radius: 8px; padding: 14px 18px; margin: 22px 0;
+}
+.note p { margin: 0; color: var(--text-dark); font-size: 14px; }
+.note .note-k { font-family: var(--mono); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--orange); margin-bottom: 6px; }
+
+footer { border-top: 1px solid var(--border-dark); padding: 40px 5vw; text-align: center; color: var(--text-dim-dark); font-size: 12px; font-family: var(--mono); }
+footer a { color: var(--text-muted-dark); margin: 0 10px; text-decoration: none; }
+footer a:hover { color: var(--text-dark); }
+</style>
+</head>
+<body>
+<nav>
+  <a class="nav-logo" href="/">
+    <div class="nav-mark"><svg viewBox="0 0 15 15" fill="none"><rect x="1" y="2.5" width="9" height="7" rx="2" fill="white"/><path d="M10 6L14 4V11L10 9V6Z" fill="white"/></svg></div>
+    <span class="nav-word"><span class="nw-go">Go</span><span class="nw-rest">Show</span><span class="nw-me">Me</span></span>
+  </a>
+  <a class="nav-back" href="/">&larr; Back to home</a>
+</nav>
+
+<main class="legal-shell">
+  <div class="legal-eyebrow">Privacy policy</div>
+  <h1>What we see, what we don't.</h1>
+  <div class="legal-meta">Last updated: April 26, 2026</div>
+  <p class="legal-lede">GoShowMe (<a href="https://goshowmeapp.com">goshowmeapp.com</a>) is a live visual support tool. This page explains what data we collect when you use it, why we collect it, and what we never touch.</p>
+
+  <h2>Who we are</h2>
+  <p>GoShowMe is operated by the GoShowMe team ("we," "us"). For privacy questions, write to <a href="mailto:hi@goshowmeapp.com">hi@goshowmeapp.com</a>.</p>
+
+  <h2>The two roles</h2>
+  <p>GoShowMe has two kinds of users with very different relationships to us:</p>
+  <ul>
+    <li><strong>Tech</strong> — the support agent who creates an account and generates session links.</li>
+    <li><strong>Customer</strong> — the person on the other end of the support call who clicks the link from their phone, allows the camera, and shows the issue.</li>
+  </ul>
+  <p>Customers do not create accounts and we do not store any persistent data about them.</p>
+
+  <h2>What the tech account stores</h2>
+  <ul>
+    <li>Email address (used to sign in).</li>
+    <li>Password hash (we never store passwords in plain text).</li>
+    <li>Display name, if you provide one.</li>
+    <li>Subscription tier and billing identifiers from our payment processor.</li>
+    <li>Usage counters: how many sessions you generated, against your monthly allotment.</li>
+    <li>Session metadata: label you gave the session, expiration time, whether it was used.</li>
+  </ul>
+
+  <h2>What happens during a live session</h2>
+  <p>When a customer opens your link and allows their camera, the video stream is delivered <strong>peer to peer</strong> via WebRTC where possible, and through a TURN relay only when a direct path cannot be negotiated. Either way, we do not record the stream.</p>
+  <p>Audio (the voice intercom feature) follows the same path as video.</p>
+  <p>Text chat messages are relayed through our signaling server in transit. We do not store chat history once the session ends.</p>
+
+  <div class="note">
+    <div class="note-k">Plain answer</div>
+    <p>The customer's camera is never recorded by us. We don't keep video, audio, or chat from your sessions.</p>
+  </div>
+
+  <h2>Vision AI</h2>
+  <p>If you press a Vision AI button, the current frame is captured as a still image and sent to our AI provider (currently OpenAI) for analysis along with the system prompt for that mode and any free-form question you typed. The frame and prompt are sent through our backend to scope and rate-limit usage. We do not retain Vision AI inputs or outputs after the response is returned to your browser.</p>
+  <p>OpenAI's handling of these images is governed by their API data policy, which states that data submitted via the API is not used to train their models.</p>
+
+  <h2>Annotations, snapshots, and freeze frames</h2>
+  <p>Annotations are drawn on your tech device locally and the strokes are streamed in real time to the customer's device. Coordinates pass through our relay; the underlying camera frame they're drawn on is never copied to our servers.</p>
+  <p>Snapshots and frozen frames stay on your local computer unless you explicitly download or save them.</p>
+
+  <h2>Cookies and tracking</h2>
+  <p>We use a single first-party authentication token stored in browser local storage to keep you signed in. We do not use third-party tracking cookies on the marketing site or in the dashboard.</p>
+
+  <h2>What we share</h2>
+  <p>We share data with a small number of operational subprocessors:</p>
+  <ul>
+    <li><strong>Hosting</strong> — Railway (application hosting and websocket signaling).</li>
+    <li><strong>TURN relay</strong> — Cloudflare or Metered, used only when peer-to-peer cannot be negotiated.</li>
+    <li><strong>Vision AI</strong> — OpenAI, used only when you trigger a Vision AI action.</li>
+    <li><strong>Payments</strong> — our payment processor for paid plans (data limited to billing).</li>
+  </ul>
+  <p>We do not sell user data.</p>
+
+  <h2>Your rights</h2>
+  <p>You can request a copy of your account data, ask us to correct it, or ask us to delete your account by writing to <a href="mailto:hi@goshowmeapp.com">hi@goshowmeapp.com</a>. We will respond within 30 days. Customers (the people clicking session links) are anonymous to us and have no account to delete; the act of ending the session deletes everything we knew about them.</p>
+
+  <h2>Children</h2>
+  <p>GoShowMe is not intended for use by children under 16, and we do not knowingly collect data about them.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>If we make material changes we will update the date at the top and notify signed-in techs by email. Continued use after a change constitutes acceptance.</p>
+
+  <h2>Contact</h2>
+  <p>Privacy questions: <a href="mailto:hi@goshowmeapp.com">hi@goshowmeapp.com</a>.</p>
+</main>
+
+<footer>
+  <a href="/">Home</a>
+  <a href="/privacy">Privacy</a>
+  <a href="/terms">Terms</a>
+  <a href="/security">Security</a>
+  <a href="mailto:hi@goshowmeapp.com">Contact</a>
+  <div style="margin-top:14px;">&copy; 2026 GoShowMe &middot; goshowmeapp.com</div>
+</footer>
+</body>
+</html>
