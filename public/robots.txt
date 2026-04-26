@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /join/
+Disallow: /api/
+
+Sitemap: https://goshowmeapp.com/sitemap.xml
