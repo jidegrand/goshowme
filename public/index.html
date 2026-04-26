@@ -539,6 +539,125 @@ nav {
 .btn-plan.outline { background: transparent; color: var(--text-light); border: 1.5px solid var(--border-light); }
 .btn-plan.outline:hover { border-color: var(--orange); color: var(--orange); }
 
+/* ─── CUSTOMER PHONE PREVIEW ─────────────────────────────────── */
+.preview-band {
+  background: var(--ink); padding: 96px 5vw;
+  color: var(--text-dark);
+  border-top: 1px solid var(--border-dark);
+}
+.preview-shell {
+  max-width: 1100px; margin: 0 auto;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  gap: 56px; align-items: center;
+}
+.preview-copy h2 { font-size: clamp(28px, 4vw, 44px); font-weight: 800; letter-spacing: -.5px; line-height: 1.1; margin-bottom: 16px; color: var(--text-dark); }
+.preview-copy h2 em { font-style: normal; color: var(--orange); }
+.preview-copy p { font-size: 16px; color: var(--text-muted-dark); line-height: 1.7; margin-bottom: 22px; max-width: 460px; }
+.preview-list { display: flex; flex-direction: column; gap: 12px; max-width: 460px; }
+.preview-row { display: flex; align-items: flex-start; gap: 12px; }
+.preview-tick {
+  flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(0,195,137,.14); color: var(--green);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; margin-top: 2px;
+}
+.preview-row strong { color: var(--text-dark); font-weight: 600; display: block; margin-bottom: 2px; font-size: 14px; }
+.preview-row span { color: var(--text-muted-dark); font-size: 13.5px; line-height: 1.55; }
+
+.phone-frame {
+  width: 280px; height: 580px;
+  background: #0d0f14; border: 8px solid #1c2028;
+  border-radius: 38px;
+  position: relative;
+  box-shadow: 0 30px 70px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04) inset;
+  overflow: hidden;
+}
+.phone-notch {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  width: 96px; height: 22px; border-radius: 12px; background: #000; z-index: 5;
+}
+.phone-screen {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, #13151a 0%, #0a0b0e 100%);
+  display: flex; flex-direction: column;
+}
+.phone-bar {
+  height: 38px; padding: 0 18px; display: flex; align-items: center; justify-content: space-between;
+  font-family: var(--mono); font-size: 11px; color: var(--text-muted-dark);
+}
+.phone-bar-time { font-weight: 600; color: var(--text-dark); }
+.phone-bar-icons { display: flex; align-items: center; gap: 4px; opacity: .7; }
+.phone-content {
+  flex: 1; padding: 36px 22px 22px;
+  display: flex; flex-direction: column;
+}
+.phone-eyebrow {
+  align-self: center;
+  font-family: var(--mono); font-size: 9px;
+  background: rgba(255,79,0,.14); border: 1px solid rgba(255,79,0,.32);
+  padding: 4px 10px; border-radius: 14px; color: var(--orange);
+  letter-spacing: .8px; text-transform: uppercase;
+  margin-bottom: 18px;
+}
+.phone-title { font-size: 18px; font-weight: 800; line-height: 1.25; letter-spacing: -.3px; margin-bottom: 10px; }
+.phone-title em { font-style: normal; color: var(--orange); }
+.phone-sub { font-size: 12.5px; color: var(--text-muted-dark); line-height: 1.55; margin-bottom: 20px; }
+.phone-meta-card {
+  background: rgba(255,255,255,.04); border: 1px solid var(--border-dark);
+  border-radius: 11px; padding: 12px 14px; margin-bottom: 10px;
+}
+.phone-meta-k { font-family: var(--mono); font-size: 9px; color: var(--text-dim-dark); letter-spacing: .8px; text-transform: uppercase; margin-bottom: 3px; }
+.phone-meta-v { font-size: 12.5px; color: var(--text-dark); font-weight: 600; }
+.phone-cta {
+  margin-top: auto;
+  background: var(--orange); color: #fff;
+  border-radius: 14px; padding: 14px;
+  font-size: 13.5px; font-weight: 800; text-align: center;
+  letter-spacing: 0;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.phone-cta svg { width: 14px; height: 14px; }
+.phone-cta-note { text-align: center; font-family: var(--mono); font-size: 9px; color: var(--text-dim-dark); margin-top: 9px; letter-spacing: .5px; }
+
+@media (max-width: 880px) {
+  .preview-shell { grid-template-columns: 1fr; gap: 40px; justify-items: center; text-align: center; }
+  .preview-copy p, .preview-list { margin-left: auto; margin-right: auto; }
+  .preview-row { text-align: left; }
+}
+
+/* ─── FAQ ─────────────────────────────────────────────────────── */
+.faq { max-width: 820px; margin: 0 auto; }
+.faq-head { text-align: center; margin-bottom: 44px; }
+.faq-list { display: flex; flex-direction: column; gap: 10px; }
+.faq-item {
+  background: #fff; border: 1px solid var(--border-light);
+  border-radius: 14px; overflow: hidden;
+  transition: border-color .15s;
+}
+.faq-item[open] { border-color: rgba(255,79,0,.32); }
+.faq-summary {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 18px; padding: 18px 22px;
+  font-size: 16px; font-weight: 700; color: var(--text-light);
+  letter-spacing: -.2px; line-height: 1.45;
+}
+.faq-summary::-webkit-details-marker { display: none; }
+.faq-summary::marker { content: ''; }
+.faq-icon {
+  flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--orange-dim); color: var(--orange);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 800; line-height: 1;
+  transition: transform .2s, background .15s;
+}
+.faq-item[open] .faq-icon { transform: rotate(45deg); background: var(--orange); color: #fff; }
+.faq-body {
+  padding: 0 22px 20px; font-size: 14.5px; line-height: 1.65;
+  color: var(--text-muted-light);
+}
+.faq-body strong { color: var(--text-light); font-weight: 600; }
+
 /* ─── SOCIAL PROOF / TAGLINE ──────────────────────────────────── */
 .marquee-section { background: var(--ink); padding: 60px 0; overflow: hidden; }
 .marquee-heading { text-align: center; font-family: var(--mono); font-size: 11px; letter-spacing: 0; color: var(--text-muted-dark); text-transform: uppercase; margin-bottom: 32px; }
@@ -700,6 +819,7 @@ footer {
     <a href="#how">How it works</a>
     <a href="#features">Features</a>
     <a href="#pricing">Pricing</a>
+    <a href="#faq">FAQ</a>
     <a href="/vs-teamviewer">vs TeamViewer</a>
   </div>
   <div class="nav-actions">
@@ -743,9 +863,10 @@ footer {
     <span>Consent-first session links</span>
   </div>
   <div class="metric-row" aria-label="GoShowMe session capabilities">
-    <div class="metric-pill"><div class="metric-k">Setup</div><div class="metric-v">Link, tap, allow</div></div>
-    <div class="metric-pill"><div class="metric-k">Guidance</div><div class="metric-v">Draw, talk, chat</div></div>
-    <div class="metric-pill"><div class="metric-k">Inspection</div><div class="metric-v">Freeze + Vision AI</div></div>
+    <div class="metric-pill"><div class="metric-k">Customer install</div><div class="metric-v">0 apps</div></div>
+    <div class="metric-pill"><div class="metric-k">Connect time</div><div class="metric-v">&lt; 3 seconds</div></div>
+    <div class="metric-pill"><div class="metric-k">Media path</div><div class="metric-v">Peer-to-peer · DTLS-SRTP</div></div>
+    <div class="metric-pill"><div class="metric-k">Stream retention</div><div class="metric-v">0 bytes recorded</div></div>
   </div>
 
   <div class="cockpit-demo" aria-label="GoShowMe live support dashboard preview">
@@ -870,6 +991,71 @@ footer {
         <div class="pain-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>
         <div class="pain-title">Video meetings add friction</div>
         <div class="pain-body">Meeting apps still ask the user to pick cameras, join rooms, find buttons, and explain what they see. GoShowMe opens directly into a consent-first camera session.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOMER PHONE PREVIEW -->
+<div class="preview-band">
+  <div class="preview-shell">
+    <div class="preview-copy">
+      <div class="section-kicker" style="color:var(--orange);">What the customer sees</div>
+      <h2>One tap to share. <em>No app, no account, no friction.</em></h2>
+      <p>Your customer opens the link from their phone, sees who's asking and how long the link is valid, then taps once to allow camera access. That's the entire onboarding.</p>
+      <div class="preview-list">
+        <div class="preview-row">
+          <div class="preview-tick">&#10003;</div>
+          <div>
+            <strong>Mobile browser only</strong>
+            <span>iOS Safari and Android Chrome work out of the box. No App Store, no Play Store.</span>
+          </div>
+        </div>
+        <div class="preview-row">
+          <div class="preview-tick">&#10003;</div>
+          <div>
+            <strong>Consent-first screen</strong>
+            <span>The customer sees who's requesting, the session expiry, and a single Allow camera button.</span>
+          </div>
+        </div>
+        <div class="preview-row">
+          <div class="preview-tick">&#10003;</div>
+          <div>
+            <strong>End any time</strong>
+            <span>One tap to stop sharing. The link stops working when the session ends or the timer expires.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phone-frame" aria-hidden="true">
+      <div class="phone-notch"></div>
+      <div class="phone-screen">
+        <div class="phone-bar">
+          <span class="phone-bar-time">9:41</span>
+          <div class="phone-bar-icons">
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><rect x="0" y="6" width="3" height="4" rx="1" fill="currentColor"/><rect x="4" y="4" width="3" height="6" rx="1" fill="currentColor"/><rect x="8" y="2" width="3" height="8" rx="1" fill="currentColor"/></svg>
+            <svg width="16" height="10" viewBox="0 0 16 10" fill="none"><rect x="0.5" y="0.5" width="13" height="9" rx="2" stroke="currentColor"/><rect x="2" y="2" width="9" height="6" rx="1" fill="currentColor"/><rect x="14" y="3.5" width="2" height="3" rx="0.5" fill="currentColor"/></svg>
+          </div>
+        </div>
+        <div class="phone-content">
+          <div class="phone-eyebrow">Live support session</div>
+          <div class="phone-title">Sarah from <em>Acme IT</em> wants to see your screen.</div>
+          <div class="phone-sub">She'll be able to see your phone's camera and guide you live. The session ends when you close this tab or when the link expires.</div>
+          <div class="phone-meta-card">
+            <div class="phone-meta-k">Session label</div>
+            <div class="phone-meta-v">Sarah&rsquo;s Dell laptop fix</div>
+          </div>
+          <div class="phone-meta-card">
+            <div class="phone-meta-k">Link valid for</div>
+            <div class="phone-meta-v">28 minutes</div>
+          </div>
+          <div class="phone-cta">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Allow camera &amp; start
+          </div>
+          <div class="phone-cta-note">YOUR CAMERA, YOUR CONTROL</div>
+        </div>
       </div>
     </div>
   </div>
@@ -1031,6 +1217,50 @@ footer {
         <a class="btn-plan outline" href="/dashboard">Start Team trial</a>
       </div>
 
+    </div>
+  </div>
+</div>
+
+<!-- FAQ -->
+<div class="band band-dark" id="faq">
+  <div class="faq">
+    <div class="faq-head">
+      <div class="section-kicker" style="text-align:center;">FAQ</div>
+      <h2 class="section-title" style="text-align:center;margin:0 auto;">Answers before sign-up.</h2>
+    </div>
+    <div class="faq-list">
+      <details class="faq-item">
+        <summary class="faq-summary">Does the customer have to install anything?<span class="faq-icon">+</span></summary>
+        <div class="faq-body">No. The customer opens the link in their phone's browser, taps <strong>Allow camera</strong>, and the live feed starts. Works on iOS Safari and Android Chrome out of the box.</div>
+      </details>
+      <details class="faq-item">
+        <summary class="faq-summary">Is the camera ever recorded?<span class="faq-icon">+</span></summary>
+        <div class="faq-body">No. Video and audio travel <strong>peer-to-peer</strong> between the two browsers using DTLS-SRTP encryption. We don't record, persist, or post-process the stream. Snapshots and frozen frames you create stay on your computer unless you export them. Full posture is on the <a href="/security" style="color:var(--orange);">security page</a>.</div>
+      </details>
+      <details class="faq-item">
+        <summary class="faq-summary">What does the customer see when they click the link?<span class="faq-icon">+</span></summary>
+        <div class="faq-body">A clear consent screen showing who's asking, that the camera will be shared, and how long the link is valid. They tap once to allow camera access and the support session starts. They can end the session at any time from their phone.</div>
+      </details>
+      <details class="faq-item">
+        <summary class="faq-summary">Which devices and browsers are supported?<span class="faq-icon">+</span></summary>
+        <div class="faq-body"><strong>Customer:</strong> any modern phone browser &mdash; iOS 14.5+ Safari, Android 9+ Chrome, recent Edge or Firefox on mobile. <strong>Tech:</strong> any desktop browser with WebRTC support &mdash; Chrome, Edge, Firefox, Safari. No app downloads, ever.</div>
+      </details>
+      <details class="faq-item">
+        <summary class="faq-summary">How accurate is the Vision AI?<span class="faq-icon">+</span></summary>
+        <div class="faq-body">Vision AI is a useful tier-1 assistant for reading screen text, identifying ports and cables, and suggesting next steps. It is generated by a model and can be wrong. Treat its output as a hint to verify, not a final answer. The frame is sent to OpenAI for analysis only when you press an AI button; we don't retain inputs or outputs.</div>
+      </details>
+      <details class="faq-item">
+        <summary class="faq-summary">Does it work over a weak connection?<span class="faq-icon">+</span></summary>
+        <div class="faq-body">Yes. WebRTC adapts the bitrate down for low bandwidth. If a direct path can't be negotiated (CGNAT, strict firewall), the stream falls back to a TURN relay automatically so the call still works. Voice keeps flowing even when video gets choppy.</div>
+      </details>
+      <details class="faq-item">
+        <summary class="faq-summary">Can I send the link by SMS or email?<span class="faq-icon">+</span></summary>
+        <div class="faq-body">Yes. Generate the session link from the dashboard and send it however you talk to your customer &mdash; SMS, email, WhatsApp, Slack, or a copy-paste into your ticketing tool. The link expires on the schedule you chose.</div>
+      </details>
+      <details class="faq-item">
+        <summary class="faq-summary">How does pricing and cancellation work?<span class="faq-icon">+</span></summary>
+        <div class="faq-body">The <strong>Starter</strong> plan is free forever with 5 sessions per month. <strong>Pro</strong> is $19 per tech seat per month, billed monthly. <strong>Team</strong> is $49 for up to 5 seats. Cancel any time from your dashboard &mdash; no exit fees, no calls. The plan stays active until the end of the billing period you already paid for.</div>
+      </details>
     </div>
   </div>
 </div>
