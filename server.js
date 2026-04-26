@@ -13,7 +13,6 @@ const AUTH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_GRANT_TTL_MS = 2 * 60 * 1000;
 const PASSWORD_MIN_LENGTH = 8;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
-const ANTHROPIC_VISION_MODEL = process.env.ANTHROPIC_VISION_MODEL || 'claude-sonnet-4-20250514';
 
 // In-memory token store (use Redis in production)
 const sessions = new Map();
@@ -319,113 +318,6 @@ function turnProviderName() {
   if (process.env.METERED_DOMAIN && process.env.METERED_API_KEY) return 'Metered.ca';
   if (process.env.TURN_URL && process.env.TURN_USERNAME && process.env.TURN_CREDENTIAL) return 'static';
   return null;
-}
-
-// ── Vision AI contract ──────────────────────────────────────────────────────
-
-const VISION_AI_MODES = {
-  analyze: {
-    label: 'Analyze frame',
-    focus: 'Identify what is clearly visible, the current state of the device or screen, and any obvious support issue.',
-  },
-  readscreen: {
-    label: 'Read screen text',
-    focus: 'Extract visible error codes, UI text, warning dialogs, status messages, boot messages, and blank/off-screen states.',
-  },
-  hardware: {
-    label: 'Inspect hardware',
-    focus: 'Inspect physical hardware: LEDs, cables, ports, power state, drive bays, damage, dust, bent pins, and loose connections.',
-  },
-  suggest: {
-    label: 'Suggest next step',
-    focus: 'Recommend the most useful practical next action a support agent should take based on the image.',
-  },
-};
-
-function clampConfidence(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return 0.5;
-  return Math.max(0, Math.min(1, n));
-}
-
-function cleanVisionString(value, fallback = '') {
-  return String(value || fallback).replace(/\s+/g, ' ').trim().slice(0, 500);
-}
-
-function cleanVisionList(value, fallback) {
-  const source = Array.isArray(value) ? value : fallback;
-  return source
-    .map(item => cleanVisionString(item))
-    .filter(Boolean)
-    .slice(0, 6);
-}
-
-function normalizeVisionResult(value) {
-  return {
-    confidence: clampConfidence(value && value.confidence),
-    observations: cleanVisionList(value && value.observations, ['No clear visual observations were returned.']),
-    possibleIssue: cleanVisionString(value && value.possibleIssue, 'No clear issue identified from the image.'),
-    recommendedNextSteps: cleanVisionList(
-      value && value.recommendedNextSteps,
-      ['Verify the visible details with the user.', 'Ask for a steadier or closer camera view.', 'Try the analysis again if needed.']
-    ).slice(0, 3),
-  };
-}
-
-function extractJsonObject(text) {
-  const raw = String(text || '').trim();
-  const withoutFence = raw
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```$/i, '')
-    .trim();
-
-  try {
-    return JSON.parse(withoutFence);
-  } catch (_) {
-    const start = withoutFence.indexOf('{');
-    const end = withoutFence.lastIndexOf('}');
-    if (start === -1 || end === -1 || end <= start) throw new Error('No JSON object returned');
-    return JSON.parse(withoutFence.slice(start, end + 1));
-  }
-}
-
-function buildVisionPrompt(mode, context = {}) {
-  const modeInfo = VISION_AI_MODES[mode] || VISION_AI_MODES.analyze;
-  const contextLines = [];
-  const ticketText = cleanVisionString(context.ticketText, '');
-  const deviceType = cleanVisionString(context.deviceType, '');
-  const previousNotes = cleanVisionString(context.previousNotes, '');
-
-  if (ticketText) contextLines.push(`Ticket: ${ticketText}`);
-  if (deviceType) contextLines.push(`Device: ${deviceType}`);
-  if (previousNotes) contextLines.push(`Previous notes: ${previousNotes}`);
-
-  return `You are a technical support assistant analyzing an image.
-
-Mode: ${modeInfo.label}
-Focus: ${modeInfo.focus}
-
-${contextLines.length ? `Context:\n${contextLines.join('\n')}\n` : ''}
-Return JSON only in this exact format:
-{
-  "confidence": number from 0 to 1,
-  "observations": ["what is clearly visible"],
-  "possibleIssue": "short practical diagnosis",
-  "recommendedNextSteps": ["max 3 actionable support steps"]
-}
-
-Rules:
-- Be concise and practical for a support agent.
-- Only mention observations that are visible or strongly supported by context.
-- If uncertain, lower confidence and say what needs verification.
-- recommendedNextSteps must contain at most 3 steps.`;
-}
-
-function getAnthropicText(data) {
-  const block = data && Array.isArray(data.content)
-    ? data.content.find(item => item && item.type === 'text')
-    : null;
-  return block && block.text ? String(block.text) : '';
 }
 
 // ── HTTP server ──────────────────────────────────────────────────────────────
@@ -756,7 +648,7 @@ const httpServer = http.createServer((req, res) => {
     return;
   }
 
-  // REST: AI vision analysis — keeps API key and prompt contract server-side
+  // REST: AI vision proxy — keeps API key server-side
   if (req.method === 'POST' && url.pathname === '/api/ai/analyze') {
     if (!ANTHROPIC_API_KEY) {
       return writeJson(res, 500, { error: 'ANTHROPIC_API_KEY not set on server.' });
@@ -764,72 +656,49 @@ const httpServer = http.createServer((req, res) => {
 
     let body = '';
     req.on('data', d => (body += d));
-    req.on('end', async () => {
+    req.on('end', () => {
+      // Validate request has expected shape — image + prompt only
       let parsed;
       try { parsed = JSON.parse(body); } catch {
         return writeJson(res, 400, { error: 'Invalid JSON' });
       }
 
-      const mode = String(parsed.mode || '').trim();
-      const imageBase64 = String(parsed.imageBase64 || '').trim();
-      const mediaType = String(parsed.mediaType || 'image/jpeg').trim();
+      const { model, max_tokens, messages } = parsed;
 
-      if (!VISION_AI_MODES[mode]) {
-        return writeJson(res, 400, { error: 'Invalid Vision AI mode.' });
+      // Safety: only allow vision calls with exactly one user message
+      if (!messages || messages.length !== 1 || messages[0].role !== 'user') {
+        return writeJson(res, 400, { error: 'Invalid message shape' });
       }
 
-      if (!imageBase64) {
-        return writeJson(res, 400, { error: 'Image data is required.' });
-      }
+      const payload = JSON.stringify({ model, max_tokens, messages });
 
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(mediaType)) {
-        return writeJson(res, 400, { error: 'Unsupported image media type.' });
-      }
+      const options = {
+        hostname: 'api.anthropic.com',
+        path: '/v1/messages',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload),
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+      };
 
-      const payload = JSON.stringify({
-        model: ANTHROPIC_VISION_MODEL,
-        max_tokens: 900,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
-            { type: 'text', text: buildVisionPrompt(mode, parsed.context || {}) },
-          ],
-        }],
+      const proxyReq = https.request(options, proxyRes => {
+        let data = '';
+        proxyRes.on('data', chunk => (data += chunk));
+        proxyRes.on('end', () => {
+          res.writeHead(proxyRes.statusCode, { 'Content-Type': 'application/json' });
+          res.end(data);
+        });
       });
 
-      try {
-        const upstream = await httpsJson({
-          hostname: 'api.anthropic.com',
-          path: '/v1/messages',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(payload),
-            'x-api-key': ANTHROPIC_API_KEY,
-            'anthropic-version': '2023-06-01',
-          },
-          body: payload,
-        });
+      proxyReq.on('error', err => {
+        writeJson(res, 502, { error: `Upstream error: ${err.message}` });
+      });
 
-        const rawText = getAnthropicText(upstream);
-        let result;
-        try {
-          result = normalizeVisionResult(extractJsonObject(rawText));
-        } catch (parseErr) {
-          console.warn('[VisionAI] non-JSON model response:', parseErr.message);
-          result = normalizeVisionResult({
-            confidence: 0.35,
-            observations: [cleanVisionString(rawText, 'The model returned an unstructured response.')],
-            possibleIssue: 'Vision AI returned an unstructured response.',
-            recommendedNextSteps: ['Verify the image manually.', 'Try the analysis again.', 'Capture a clearer frame if needed.'],
-          });
-        }
-        writeJson(res, 200, result);
-      } catch (err) {
-        console.error('[VisionAI] analysis failed:', err.message);
-        writeJson(res, 502, { error: `Vision AI failed: ${err.message}` });
-      }
+      proxyReq.write(payload);
+      proxyReq.end();
     });
     return;
   }
