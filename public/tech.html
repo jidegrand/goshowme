@@ -1665,6 +1665,7 @@ async function runAI(mode, ev){
   }
 
   if(!aiOpen){ aiOpen = true; document.getElementById('aiSidebar').classList.add('open'); }
+  if(chatOpen){ chatOpen = false; updateChatUI(); }
 
   const image = captureFrame();
   if(!image){ appendAiError('No frame captured — wait for the live video.'); return; }
