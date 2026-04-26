@@ -348,6 +348,27 @@
   }
   .ai-copy-btn:hover { color: var(--accent); }
 
+  .ai-freeform { padding: 8px 12px 12px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; align-items: flex-end; flex-shrink: 0; }
+  .ai-freeform textarea {
+    flex: 1; min-height: 34px; max-height: 90px; resize: none;
+    padding: 8px 10px; border-radius: 8px;
+    background: rgba(255,255,255,.04); border: 1px solid var(--border-hi); color: var(--text);
+    font: inherit; font-size: 12px; line-height: 1.4; outline: none;
+    transition: border-color .15s, background .15s;
+  }
+  .ai-freeform textarea:focus { border-color: var(--accent); background: rgba(255,255,255,.06); }
+  .ai-freeform textarea:disabled { opacity: .5; cursor: not-allowed; }
+  .ai-freeform-send {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: var(--accent); border: none; color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: filter .15s, opacity .15s;
+  }
+  .ai-freeform-send:hover:not(:disabled) { filter: brightness(1.08); }
+  .ai-freeform-send:disabled { opacity: .35; cursor: not-allowed; }
+  .ai-freeform-send svg { width: 14px; height: 14px; }
+  .ai-error { background: rgba(248,113,113,.10); border: 1px solid rgba(248,113,113,.35); color: #fecaca; font-size: 12px; line-height: 1.5; padding: 9px 11px; border-radius: 8px; }
+
   /* AI toolbar button — special orange glow */
   .ico-btn.ai-trigger { border-color: rgba(255,79,0,.3); color: var(--accent); }
   .ico-btn.ai-trigger:hover { background: var(--accent-dim); border-color: var(--accent); }
@@ -627,6 +648,13 @@
             </div>
           </button>
         </div>
+
+        <form class="ai-freeform" onsubmit="runAI('freeform', event)">
+          <textarea id="aiPromptInput" rows="1" maxlength="600" placeholder="Ask anything about the frame…" oninput="handleAiPromptInput()" onkeydown="handleAiPromptKeydown(event)"></textarea>
+          <button class="ai-freeform-send" id="aiPromptSend" type="submit" title="Ask" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          </button>
+        </form>
 
         <div class="ai-results" id="aiResults">
           <div class="ai-thinking" id="aiThinking">
@@ -1495,6 +1523,205 @@ function toggleFreeze(){
   updateFreezeUI();
 }
 
+// ── VISION AI ──────────────────────────────────────────────────────────────
+let aiOpen = false;
+let aiBusy = false;
+
+const AI_MODE_LABELS = {
+  analyze:    { label: 'analyze',     thinking: 'Analyzing frame…' },
+  readscreen: { label: 'read screen', thinking: 'Reading screen…' },
+  hardware:   { label: 'hardware',    thinking: 'Inspecting hardware…' },
+  suggest:    { label: 'next step',   thinking: 'Thinking of next step…' },
+  freeform:   { label: 'free-form',   thinking: 'Asking…' },
+};
+
+function toggleAI(){
+  aiOpen = !aiOpen;
+  const sb = document.getElementById('aiSidebar');
+  if(sb) sb.classList.toggle('open', aiOpen);
+  if(aiOpen && chatOpen){
+    chatOpen = false;
+    updateChatUI();
+  }
+  if(aiOpen) setTimeout(()=>document.getElementById('aiPromptInput')?.focus(),0);
+}
+
+function captureFrame(){
+  const v = document.getElementById('remoteVideo');
+  if(!v || !v.videoWidth || !v.videoHeight) return null;
+  // Cap to a reasonable dimension to keep payload small (and AI cost low at detail:'low')
+  const MAX_DIM = 1024;
+  let w = v.videoWidth, h = v.videoHeight;
+  if(w > MAX_DIM || h > MAX_DIM){
+    const scale = MAX_DIM / Math.max(w, h);
+    w = Math.round(w * scale); h = Math.round(h * scale);
+  }
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(v, 0, 0, w, h);
+  return c.toDataURL('image/jpeg', 0.82);
+}
+
+function showAiThinking(on, label){
+  const t = document.getElementById('aiThinking');
+  const lbl = document.getElementById('aiThinkLbl');
+  const empty = document.getElementById('aiEmpty');
+  if(t) t.classList.toggle('on', !!on);
+  if(lbl && label) lbl.textContent = label;
+  if(empty) empty.style.display = on ? 'none' : empty.style.display;
+}
+
+function setAiBusy(on){
+  aiBusy = !!on;
+  const btn = document.getElementById('aiBtn');
+  if(btn) btn.classList.toggle('busy', aiBusy);
+  ['btnAnalyze','btnReadScreen','btnHardware','btnSuggest'].forEach(id=>{
+    const b = document.getElementById(id);
+    if(b) b.disabled = aiBusy;
+  });
+  const send = document.getElementById('aiPromptSend');
+  const ta = document.getElementById('aiPromptInput');
+  if(send) send.disabled = aiBusy || !(ta && ta.value && ta.value.trim());
+  if(ta) ta.disabled = aiBusy;
+}
+
+function appendAiResult(mode, text, thumb){
+  const list = document.getElementById('aiResults');
+  if(!list) return;
+  const empty = document.getElementById('aiEmpty');
+  if(empty) empty.style.display = 'none';
+  const card = document.createElement('div');
+  card.className = 'ai-result-card';
+  const head = document.createElement('div');
+  head.className = 'ai-result-head';
+  const modeLbl = document.createElement('div');
+  modeLbl.className = 'ai-result-mode';
+  modeLbl.innerHTML = '<span class="ai-result-mode-dot"></span><span></span>';
+  modeLbl.querySelector('span:last-child').textContent = (AI_MODE_LABELS[mode]||{}).label || mode;
+  const time = document.createElement('div');
+  time.className = 'ai-result-time';
+  const d = new Date();
+  time.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  head.appendChild(modeLbl); head.appendChild(time);
+  card.appendChild(head);
+  if(thumb){
+    const img = document.createElement('img');
+    img.src = thumb; img.className = 'ai-result-thumb'; img.alt = '';
+    card.appendChild(img);
+  }
+  const bodyEl = document.createElement('div');
+  bodyEl.className = 'ai-result-body';
+  const textEl = document.createElement('div');
+  textEl.className = 'ai-result-text';
+  textEl.textContent = text;
+  bodyEl.appendChild(textEl);
+  const copyRow = document.createElement('div');
+  copyRow.className = 'ai-copy-row';
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'ai-copy-btn';
+  copyBtn.type = 'button';
+  copyBtn.textContent = 'Copy';
+  copyBtn.onclick = ()=>{
+    try{ navigator.clipboard.writeText(text); copyBtn.textContent = 'Copied'; setTimeout(()=>{copyBtn.textContent='Copy';}, 1200); }catch(_){}
+  };
+  copyRow.appendChild(copyBtn);
+  bodyEl.appendChild(copyRow);
+  card.appendChild(bodyEl);
+  list.appendChild(card);
+  list.scrollTop = list.scrollHeight;
+}
+
+function appendAiError(text){
+  const list = document.getElementById('aiResults');
+  if(!list) return;
+  const empty = document.getElementById('aiEmpty');
+  if(empty) empty.style.display = 'none';
+  const div = document.createElement('div');
+  div.className = 'ai-error';
+  div.textContent = text;
+  list.appendChild(div);
+  list.scrollTop = list.scrollHeight;
+}
+
+async function runAI(mode, ev){
+  if(ev && ev.preventDefault) ev.preventDefault();
+  if(aiBusy) return;
+  if(!activeToken){ appendAiError('No active session.'); return; }
+  if(!AI_MODE_LABELS[mode]){ appendAiError('Unknown AI mode: '+mode); return; }
+
+  let userPrompt = '';
+  const promptEl = document.getElementById('aiPromptInput');
+  if(mode === 'freeform'){
+    userPrompt = (promptEl && promptEl.value || '').trim();
+    if(!userPrompt){ appendAiError('Type a question first.'); return; }
+  }
+
+  if(!aiOpen){ aiOpen = true; document.getElementById('aiSidebar').classList.add('open'); }
+
+  const image = captureFrame();
+  if(!image){ appendAiError('No frame captured — wait for the live video.'); return; }
+
+  setAiBusy(true);
+  showAiThinking(true, (AI_MODE_LABELS[mode]||{}).thinking || 'Thinking…');
+
+  try{
+    const r = await fetch('/api/ai/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode, image, userPrompt, sessionToken: activeToken }),
+    });
+    const json = await r.json().catch(()=>({ ok:false, error:'Bad JSON from server' }));
+    showAiThinking(false);
+    if(!json.ok){
+      appendAiError(json.error || ('HTTP ' + r.status));
+    } else {
+      appendAiResult(mode, json.text || '(empty response)', image);
+      if(mode === 'freeform' && promptEl){ promptEl.value = ''; promptEl.style.height = ''; }
+    }
+  }catch(err){
+    showAiThinking(false);
+    appendAiError('Network error: ' + (err && err.message ? err.message : err));
+  }finally{
+    setAiBusy(false);
+  }
+}
+
+function handleAiPromptInput(){
+  const ta = document.getElementById('aiPromptInput');
+  const send = document.getElementById('aiPromptSend');
+  if(ta){
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 90) + 'px';
+  }
+  if(send) send.disabled = aiBusy || !(ta && ta.value && ta.value.trim());
+}
+
+function handleAiPromptKeydown(e){
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    runAI('freeform', e);
+  }
+}
+
+function resetAiSession(){
+  aiOpen = false;
+  aiBusy = false;
+  const sb = document.getElementById('aiSidebar');
+  if(sb) sb.classList.remove('open');
+  const list = document.getElementById('aiResults');
+  if(list){
+    list.innerHTML =
+      '<div class="ai-thinking" id="aiThinking"><div class="ai-think-dots"><div class="ai-think-dot"></div><div class="ai-think-dot"></div><div class="ai-think-dot"></div></div><div class="ai-think-lbl" id="aiThinkLbl">Analyzing frame…</div></div>' +
+      '<div class="ai-empty" id="aiEmpty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg><span>Choose an analysis mode above.<br>AI reads the live camera frame.</span></div>';
+  }
+  const ta = document.getElementById('aiPromptInput');
+  if(ta){ ta.value=''; ta.style.height=''; }
+  const send = document.getElementById('aiPromptSend');
+  if(send) send.disabled = true;
+  setAiBusy(false);
+}
+
 function handleSignal(msg){
   switch(msg.type){
     case 'joined': setConn('idle'); break;
@@ -1558,6 +1785,7 @@ function tearPeer(){
   setVoiceCapable(false);
   setFreezeCapable(false);
   setChatCapable(false);
+  resetAiSession();
   clearInterval(durInt);durInt=null;sessStart=null;
   document.getElementById('statDur').textContent='—';
   document.getElementById('statState').textContent=activeToken?'waiting':'—';
@@ -1995,154 +2223,6 @@ function showAnnoToolbar(on) {
   document.getElementById('annoToolbar').classList.toggle('visible', on);
   if (on) { annoCanvas.classList.add('drawing'); setTool('laser'); }
   else { annoCanvas.className = ''; clearAnnotations(); }
-}
-
-// ── VISION AI ────────────────────────────────────────────────────────────────
-const AI_PROMPTS = {
-  analyze: `You are a tech support AI assistant watching a live camera feed during a remote support session.
-Describe what you see in 2-3 sentences. Focus on: what device or screen is visible, its current state, and any obvious issues.
-Be concise and actionable. Start directly with what you observe.`,
-
-  readscreen: `You are a tech support AI assistant. Extract ALL visible text from this image.
-Pay special attention to: error codes, error messages, warning dialogs, status messages, loading screens, BSOD codes, boot messages.
-Format extracted text clearly. If you see an error code, put it on its own line prefixed with "ERROR:".
-If the screen appears blank or off, say so clearly.`,
-
-  hardware: `You are a tech support AI assistant inspecting physical hardware via a camera feed.
-Describe the physical state of any hardware you can see. Look for:
-- LED indicator colors and patterns (green=good, amber=warning, red=error, blinking patterns)
-- Cable connections — are they fully seated? Any visibly loose cables?
-- Physical damage, dust buildup, bent pins, or abnormalities
-- Drive bays — are any empty or showing eject indicators?
-- Port occupancy — what's plugged in where?
-Be specific about locations (e.g. "top-left drive bay", "rear USB port").`,
-
-  suggest: `You are a senior tech support engineer watching a live camera feed of a user's device.
-Based on what you see, suggest the single most useful next step the tech should take or instruct the user to do.
-Be direct and specific — give an actual instruction, not a vague recommendation.
-Format: one clear action sentence, then a brief reason why in parentheses.`,
-};
-
-const AI_LABELS = {
-  analyze:    'Analyzing frame…',
-  readscreen: 'Reading screen text…',
-  hardware:   'Inspecting hardware…',
-  suggest:    'Thinking of next step…',
-};
-
-const AI_MODES = {
-  analyze:    'ANALYZE',
-  readscreen: 'READ SCREEN',
-  hardware:   'HARDWARE',
-  suggest:    'SUGGEST',
-};
-
-let aiOpen = false;
-let aiRunning = false;
-
-function toggleAI() {
-  aiOpen = !aiOpen;
-  if (aiOpen) toggleChat(false);
-  document.getElementById('aiSidebar').classList.toggle('open', aiOpen);
-  document.getElementById('aiBtn').classList.toggle('ai-trigger', true);
-}
-
-async function runAI(mode) {
-  const video = document.getElementById('remoteVideo');
-  if (!video.srcObject || aiRunning) return;
-
-  aiRunning = true;
-  setAIBtns(true);
-
-  // Capture current frame
-  const canvas = document.createElement('canvas');
-  canvas.width  = video.videoWidth  || 640;
-  canvas.height = video.videoHeight || 480;
-  const ctx2 = canvas.getContext('2d');
-  ctx2.drawImage(video, 0, 0);
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-  const base64  = dataUrl.split(',')[1];
-
-  // Show thinking state
-  const thinking = document.getElementById('aiThinking');
-  const empty    = document.getElementById('aiEmpty');
-  document.getElementById('aiThinkLbl').textContent = AI_LABELS[mode];
-  thinking.classList.add('on');
-  empty.style.display = 'none';
-
-  const thumbUrl = dataUrl;
-  const ts = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-
-  try {
-    const response = await fetch('/api/ai/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
-            { type: 'text',  text: AI_PROMPTS[mode] }
-          ]
-        }]
-      })
-    });
-
-    const data = await response.json();
-    const text = data.content?.find(b => b.type === 'text')?.text || 'No response received.';
-    thinking.classList.remove('on');
-    insertAIResult(mode, text, thumbUrl, ts);
-  } catch (err) {
-    thinking.classList.remove('on');
-    insertAIResult(mode, `Error: ${err.message}. Check your API connection.`, null, ts);
-  }
-
-  aiRunning = false;
-  setAIBtns(false);
-}
-
-function insertAIResult(mode, text, thumbUrl, ts) {
-  const results = document.getElementById('aiResults');
-
-  // Highlight error codes in red text
-  const highlighted = text.replace(/(ERROR:|0x[0-9A-Fa-f]+|BSOD|STOP:?\s*0x\w+)/g,
-    '<span class="ai-highlight">$1</span>');
-
-  const card = document.createElement('div');
-  card.className = 'ai-result-card';
-  card.innerHTML = `
-    <div class="ai-result-head">
-      <div class="ai-result-mode"><div class="ai-result-mode-dot"></div>${AI_MODES[mode]}</div>
-      <div class="ai-result-time">${ts}</div>
-    </div>
-    ${thumbUrl ? `<img class="ai-result-thumb" src="${thumbUrl}" alt="Captured frame">` : ''}
-    <div class="ai-result-body">
-      <div class="ai-result-text">${highlighted}</div>
-      <div class="ai-copy-row">
-        <button class="ai-copy-btn" onclick="copyAIResult(this, ${JSON.stringify(text)})">Copy text</button>
-      </div>
-    </div>
-  `;
-
-  // Insert after thinking indicator
-  const thinking = document.getElementById('aiThinking');
-  results.insertBefore(card, thinking.nextSibling);
-}
-
-function copyAIResult(btn, text) {
-  navigator.clipboard.writeText(text).then(() => {
-    btn.textContent = 'Copied!';
-    setTimeout(() => btn.textContent = 'Copy text', 1500);
-  });
-}
-
-function setAIBtns(disabled) {
-  ['btnAnalyze','btnReadScreen','btnHardware','btnSuggest'].forEach(id => {
-    document.getElementById(id).disabled = disabled;
-  });
-  document.getElementById('aiBtn').classList.toggle('busy', disabled);
 }
 
 fitMediaFrame();

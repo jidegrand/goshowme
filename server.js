@@ -13,6 +13,8 @@ const AUTH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_GRANT_TTL_MS = 2 * 60 * 1000;
 const PASSWORD_MIN_LENGTH = 8;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+const OPENAI_VISION_MODEL = process.env.OPENAI_VISION_MODEL || 'gpt-4o-mini';
 
 // In-memory token store (use Redis in production)
 const sessions = new Map();
@@ -648,39 +650,101 @@ const httpServer = http.createServer((req, res) => {
     return;
   }
 
-  // REST: AI vision proxy — keeps API key server-side
+  // REST: AI vision proxy → OpenAI (gpt-4o-mini by default).
+  // Frontend posts { mode, image (data URI), userPrompt? , sessionToken? }.
+  // Server builds the OpenAI message, calls the API, and returns { ok, text } or { ok:false, error }.
   if (req.method === 'POST' && url.pathname === '/api/ai/analyze') {
-    if (!ANTHROPIC_API_KEY) {
-      return writeJson(res, 500, { error: 'ANTHROPIC_API_KEY not set on server.' });
+    if (!OPENAI_API_KEY) {
+      return writeJson(res, 500, { ok: false, error: 'OPENAI_API_KEY not set on server.' });
     }
 
     let body = '';
-    req.on('data', d => (body += d));
+    let aborted = false;
+    req.on('data', d => {
+      body += d;
+      // Cap upload size at ~6 MB so a misbehaving client can't OOM the server with image data
+      if (body.length > 6 * 1024 * 1024) {
+        aborted = true;
+        writeJson(res, 413, { ok: false, error: 'Image too large (max 6MB).' });
+        req.destroy();
+      }
+    });
     req.on('end', () => {
-      // Validate request has expected shape — image + prompt only
+      if (aborted) return;
       let parsed;
       try { parsed = JSON.parse(body); } catch {
-        return writeJson(res, 400, { error: 'Invalid JSON' });
+        return writeJson(res, 400, { ok: false, error: 'Invalid JSON.' });
       }
 
-      const { model, max_tokens, messages } = parsed;
+      const mode = String(parsed.mode || '').toLowerCase();
+      const image = typeof parsed.image === 'string' ? parsed.image : '';
+      const userPrompt = typeof parsed.userPrompt === 'string' ? parsed.userPrompt.slice(0, 600) : '';
+      const sessionToken = typeof parsed.sessionToken === 'string' ? parsed.sessionToken : '';
 
-      // Safety: only allow vision calls with exactly one user message
-      if (!messages || messages.length !== 1 || messages[0].role !== 'user') {
-        return writeJson(res, 400, { error: 'Invalid message shape' });
+      // Light gate: require an active session so randos can't burn API credit.
+      if (!sessionToken || !sessions.has(sessionToken)) {
+        return writeJson(res, 401, { ok: false, error: 'No active session.' });
       }
 
-      const payload = JSON.stringify({ model, max_tokens, messages });
+      // Image must be a data URI we can pass through to OpenAI
+      if (!/^data:image\/(jpeg|png|webp);base64,/.test(image)) {
+        return writeJson(res, 400, { ok: false, error: 'Image must be a data URI (jpeg/png/webp).' });
+      }
+
+      const SYSTEM_PROMPTS = {
+        analyze:
+          'You are a remote tech support assistant looking through a live camera at what the user is pointing at. ' +
+          'In 2–4 short sentences, describe what is visible: devices, screens, indicators, cables, environment. ' +
+          'Be specific. Surface anything that looks broken, unusual, or relevant to a support call.',
+        readscreen:
+          'You are a remote tech support OCR assistant. Transcribe ALL readable text visible in the image — ' +
+          'error messages, dialog boxes, status bars, button labels, serial numbers, model numbers. ' +
+          'Preserve line breaks and obvious structure. If no readable text is visible, reply exactly: No readable text found.',
+        hardware:
+          'You are a remote tech support assistant inspecting hardware via a camera. ' +
+          'Return 3–5 short bullet points covering: connected cables, indicator LEDs (color + state), ' +
+          'ports (occupied or empty), visible buttons/switches, model or serial markings, and any physical damage. ' +
+          'Skip anything not visible.',
+        suggest:
+          'You are a remote tech support assistant. Looking at this camera frame, suggest the single most useful next step ' +
+          'the support tech should take (or ask the user to do). Be concrete and brief — 1–2 sentences. ' +
+          'If you cannot tell what the problem is, suggest where the user should point the camera next.',
+        freeform:
+          'You are a remote tech support assistant. The image is a frame from the user\'s live camera, pointed at their problem. ' +
+          'Answer the tech\'s question using only what is visible. Be concise.',
+      };
+
+      const sys = SYSTEM_PROMPTS[mode];
+      if (!sys) return writeJson(res, 400, { ok: false, error: 'Unknown mode.' });
+
+      const userText = mode === 'freeform'
+        ? (userPrompt || 'Describe what is in this image.')
+        : 'Analyze this frame from the live camera.';
+
+      const payload = JSON.stringify({
+        model: OPENAI_VISION_MODEL,
+        max_tokens: 400,
+        temperature: 0.2,
+        messages: [
+          { role: 'system', content: sys },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: userText },
+              { type: 'image_url', image_url: { url: image, detail: 'low' } },
+            ],
+          },
+        ],
+      });
 
       const options = {
-        hostname: 'api.anthropic.com',
-        path: '/v1/messages',
+        hostname: 'api.openai.com',
+        path: '/v1/chat/completions',
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(payload),
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
         },
       };
 
@@ -688,13 +752,22 @@ const httpServer = http.createServer((req, res) => {
         let data = '';
         proxyRes.on('data', chunk => (data += chunk));
         proxyRes.on('end', () => {
-          res.writeHead(proxyRes.statusCode, { 'Content-Type': 'application/json' });
-          res.end(data);
+          let json;
+          try { json = JSON.parse(data); } catch {
+            return writeJson(res, 502, { ok: false, error: 'Upstream returned non-JSON.' });
+          }
+          if (proxyRes.statusCode >= 400) {
+            const msg = json && json.error && json.error.message ? json.error.message : ('Upstream HTTP ' + proxyRes.statusCode);
+            return writeJson(res, 502, { ok: false, error: msg });
+          }
+          const text =
+            (json && json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content) || '';
+          writeJson(res, 200, { ok: true, text, mode, model: json.model || OPENAI_VISION_MODEL });
         });
       });
 
       proxyReq.on('error', err => {
-        writeJson(res, 502, { error: `Upstream error: ${err.message}` });
+        writeJson(res, 502, { ok: false, error: `Upstream error: ${err.message}` });
       });
 
       proxyReq.write(payload);
