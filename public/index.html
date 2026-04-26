@@ -528,6 +528,7 @@ nav {
 .price-features li { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; color: var(--text-muted-light); line-height: 1.4; }
 .check-ico { width: 16px; height: 16px; border-radius: 50%; background: rgba(0,195,137,.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 0px; }
 .check-ico svg { width: 9px; height: 9px; color: var(--green); }
+.soon-tag { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: rgba(255,79,0,.12); border: 1px solid rgba(255,79,0,.30); color: var(--orange); font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: .8px; vertical-align: middle; }
 .btn-plan {
   width: 100%; padding: 12px; border-radius: 10px;
   font-family: var(--font); font-size: 14px; font-weight: 700; cursor: pointer;
@@ -657,6 +658,182 @@ nav {
   color: var(--text-muted-light);
 }
 .faq-body strong { color: var(--text-light); font-weight: 600; }
+
+/* ─── INDUSTRIES ──────────────────────────────────────────────── */
+.industries { max-width: 1100px; margin: 0 auto; }
+.industry-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;
+  margin-top: 40px;
+}
+.industry-card {
+  background: #fff; border: 1px solid var(--border-light);
+  border-radius: 14px; padding: 22px;
+  display: flex; flex-direction: column; gap: 10px;
+  transition: border-color .15s, transform .15s;
+}
+.industry-card:hover { border-color: rgba(255,79,0,.32); transform: translateY(-2px); }
+.industry-ico {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--orange-dim); color: var(--orange);
+}
+.industry-ico svg { width: 19px; height: 19px; }
+.industry-title { font-size: 15px; font-weight: 700; color: var(--text-light); letter-spacing: -.2px; }
+.industry-body { font-size: 13.5px; color: var(--text-muted-light); line-height: 1.55; }
+.industry-tag {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .8px; text-transform: uppercase;
+  color: var(--text-muted-light); margin-top: auto; padding-top: 6px;
+}
+@media (max-width: 880px) { .industry-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .industry-grid { grid-template-columns: 1fr; } }
+
+/* ─── ANNOTATION TOOL SHOWCASE ────────────────────────────────── */
+.annotation-band { background: var(--ink); padding: 96px 5vw; color: var(--text-dark); border-top: 1px solid var(--border-dark); }
+.annotation-shell { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 56px; align-items: center; }
+.annotation-copy h2 { font-size: clamp(28px, 4vw, 44px); font-weight: 800; letter-spacing: -.5px; line-height: 1.1; margin-bottom: 16px; }
+.annotation-copy h2 em { font-style: normal; color: var(--orange); }
+.annotation-copy p { font-size: 16px; color: var(--text-muted-dark); line-height: 1.7; margin-bottom: 20px; max-width: 460px; }
+.tool-pills { display: flex; flex-wrap: wrap; gap: 8px; max-width: 460px; }
+.tool-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 12px; border-radius: 999px;
+  background: rgba(255,255,255,.04); border: 1px solid var(--border-dark);
+  font-family: var(--mono); font-size: 11px; color: var(--text-dark);
+  letter-spacing: .3px;
+}
+.tool-pill svg { width: 12px; height: 12px; color: var(--orange); }
+.tool-pill .swatch-row { display: inline-flex; gap: 3px; align-items: center; }
+.tool-pill .sw { width: 9px; height: 9px; border-radius: 50%; }
+.tool-pill .sw.r { background: #ff4455; } .tool-pill .sw.y { background: #ffee00; }
+.tool-pill .sw.g { background: #00C389; } .tool-pill .sw.b { background: #38bdf8; }
+.tool-pill .sw.o { background: var(--orange); }
+
+.anno-stage {
+  position: relative; aspect-ratio: 4/3; border-radius: 18px; overflow: hidden;
+  border: 1px solid var(--border-dark);
+  background:
+    radial-gradient(circle at 30% 35%, rgba(255,79,0,.18), transparent 40%),
+    radial-gradient(circle at 70% 70%, rgba(56,189,248,.10), transparent 50%),
+    linear-gradient(135deg, #1a1410 0%, #0d1118 60%, #161922 100%);
+  box-shadow: 0 30px 70px rgba(0,0,0,.45);
+}
+.anno-stage::before {
+  content: ''; position: absolute; inset: 0;
+  background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: 40px 40px; pointer-events: none;
+}
+.anno-frozen-badge {
+  position: absolute; top: 12px; left: 12px;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px; border-radius: 999px;
+  background: rgba(56,189,248,.16); border: 1px solid rgba(56,189,248,.55);
+  color: #bae6fd; font-family: var(--mono); font-size: 9.5px; letter-spacing: 1px;
+}
+.anno-frozen-badge svg { width: 10px; height: 10px; }
+.anno-device {
+  position: absolute; left: 18%; right: 22%; top: 22%; bottom: 22%;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #353c47, #1a1f28);
+  border: 1px solid rgba(255,255,255,.12);
+  transform: rotate(-3deg);
+  box-shadow: 0 20px 40px rgba(0,0,0,.4);
+}
+.anno-port-row {
+  position: absolute; left: 22%; right: 26%; top: 38%; height: 18%;
+  display: flex; align-items: center; justify-content: space-around;
+  transform: rotate(-3deg);
+}
+.anno-port { width: 14%; height: 60%; background: #0a0d12; border-radius: 3px; border: 1px solid rgba(255,255,255,.10); }
+.anno-circle {
+  position: absolute; left: 38%; top: 36%; width: 86px; height: 60px;
+  border: 3px solid #ffee00; border-radius: 50%;
+  box-shadow: 0 0 24px rgba(255,238,0,.4);
+}
+.anno-arrow {
+  position: absolute; right: 14%; top: 56%;
+  width: 100px; height: 3px; background: var(--orange);
+  transform: rotate(-22deg); transform-origin: right center;
+  box-shadow: 0 0 20px rgba(255,79,0,.55);
+}
+.anno-arrow::after {
+  content: ''; position: absolute; right: -2px; top: -6px;
+  border-left: 14px solid var(--orange);
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+}
+.anno-laser {
+  position: absolute; right: 38%; top: 24%;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,68,85,.95), rgba(255,68,85,.0) 70%);
+  box-shadow: 0 0 16px rgba(255,68,85,.7);
+}
+.anno-pen {
+  position: absolute; left: 26%; top: 60%; width: 130px; height: 30px;
+  background: none;
+  border-bottom: 3px solid #00C389;
+  border-radius: 80% 20% 0 0 / 100% 100% 0 0;
+  box-shadow: 0 0 18px rgba(0,195,137,.4);
+}
+
+@media (max-width: 880px) {
+  .annotation-shell { grid-template-columns: 1fr; gap: 40px; }
+  .anno-stage { max-width: 520px; margin: 0 auto; }
+}
+
+/* ─── PILOT PROGRAM ───────────────────────────────────────────── */
+.pilot-band {
+  background:
+    radial-gradient(circle at 80% 20%, rgba(255,79,0,.10), transparent 40%),
+    radial-gradient(circle at 10% 90%, rgba(56,189,248,.08), transparent 40%),
+    var(--ink2);
+  padding: 96px 5vw;
+  color: var(--text-dark);
+  border-top: 1px solid var(--border-dark);
+}
+.pilot-shell {
+  max-width: 980px; margin: 0 auto;
+  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,79,0,.22);
+  border-radius: 22px;
+  padding: 48px;
+  display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 40px; align-items: center;
+}
+.pilot-eyebrow {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 13px; border-radius: 999px;
+  background: rgba(255,79,0,.14); border: 1px solid rgba(255,79,0,.32);
+  font-family: var(--mono); font-size: 10.5px; color: var(--orange);
+  letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 18px;
+}
+.pilot-eyebrow .eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--orange); animation: blink 2s infinite; }
+.pilot-shell h2 { font-size: clamp(26px, 3.2vw, 36px); font-weight: 800; letter-spacing: -.5px; line-height: 1.15; margin-bottom: 14px; }
+.pilot-shell p { font-size: 15px; color: var(--text-muted-dark); line-height: 1.65; margin-bottom: 18px; }
+.pilot-bullets { display: flex; flex-direction: column; gap: 9px; margin-bottom: 22px; }
+.pilot-bullet { display: flex; align-items: flex-start; gap: 9px; font-size: 14px; color: var(--text-dark); }
+.pilot-bullet::before { content: '\2713'; flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,195,137,.14); color: var(--green); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; margin-top: 2px; }
+.pilot-cta {
+  display: flex; flex-direction: column; gap: 12px;
+  background: var(--ink); border: 1px solid var(--border-dark);
+  border-radius: 16px; padding: 26px;
+}
+.pilot-cta-k { font-family: var(--mono); font-size: 10.5px; color: var(--text-dim-dark); letter-spacing: 1px; text-transform: uppercase; }
+.pilot-cta-v { font-size: 17px; font-weight: 700; color: var(--text-dark); letter-spacing: -.3px; }
+.pilot-cta-mail {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--orange); color: #fff; text-decoration: none;
+  border-radius: 12px; padding: 13px;
+  font-size: 14px; font-weight: 700; letter-spacing: -.1px;
+  transition: background .15s;
+}
+.pilot-cta-mail:hover { background: var(--orange-hover); }
+.pilot-cta-mail svg { width: 14px; height: 14px; }
+.pilot-cta-note { font-family: var(--mono); font-size: 10.5px; color: var(--text-dim-dark); text-align: center; letter-spacing: .5px; }
+
+@media (max-width: 760px) {
+  .pilot-shell { grid-template-columns: 1fr; padding: 32px; gap: 28px; }
+}
 
 /* ─── SOCIAL PROOF / TAGLINE ──────────────────────────────────── */
 .marquee-section { background: var(--ink); padding: 60px 0; overflow: hidden; }
@@ -1199,6 +1376,7 @@ footer {
           <li><div class="check-ico"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Torch + auto-rotate controls</li>
           <li><div class="check-ico"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Vision AI analysis modes</li>
           <li><div class="check-ico"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Up to 2 hour TTL</li>
+          <li><div class="check-ico"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Invite a 2nd tech to view <span class="soon-tag">SOON</span></li>
         </ul>
         <a class="btn-plan primary" href="/dashboard">Start Pro free trial</a>
       </div>
@@ -1213,6 +1391,7 @@ footer {
           <li><div class="check-ico"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Session history &amp; handoff notes</li>
           <li><div class="check-ico"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Custom domain / white-label</li>
           <li><div class="check-ico"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Helpdesk workflow integrations</li>
+          <li><div class="check-ico"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="1.5 5 4 7.5 8.5 2.5"/></svg></div>Multi-tech collaborative sessions <span class="soon-tag">SOON</span></li>
         </ul>
         <a class="btn-plan outline" href="/dashboard">Start Team trial</a>
       </div>
@@ -1261,6 +1440,118 @@ footer {
         <summary class="faq-summary">How does pricing and cancellation work?<span class="faq-icon">+</span></summary>
         <div class="faq-body">The <strong>Starter</strong> plan is free forever with 5 sessions per month. <strong>Pro</strong> is $19 per tech seat per month, billed monthly. <strong>Team</strong> is $49 for up to 5 seats. Cancel any time from your dashboard &mdash; no exit fees, no calls. The plan stays active until the end of the billing period you already paid for.</div>
       </details>
+    </div>
+  </div>
+</div>
+
+<!-- INDUSTRIES -->
+<div class="band" id="industries">
+  <div class="industries">
+    <div style="text-align:center;margin-bottom:8px;">
+      <div class="section-kicker" style="text-align:center;">Built for</div>
+      <h2 class="section-title" style="text-align:center;margin:0 auto;">Visual support, in any industry.</h2>
+      <p class="section-sub" style="margin:14px auto 0;max-width:560px;">Anywhere a tech needs to see what the customer is looking at, GoShowMe replaces "can you describe what you see" with "let me show you."</p>
+    </div>
+    <div class="industry-grid">
+      <div class="industry-card">
+        <div class="industry-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M2 20h20M9 16h6"/></svg></div>
+        <div class="industry-title">IT helpdesks</div>
+        <div class="industry-body">Diagnose dead screens, BIOS errors, blue screens, and "the cable's plugged in wrong" without a desk visit.</div>
+        <div class="industry-tag">L1 &middot; L2 &middot; remote</div>
+      </div>
+      <div class="industry-card">
+        <div class="industry-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg></div>
+        <div class="industry-title">Managed service providers</div>
+        <div class="industry-body">Run remote-hand visits at customer sites without truck rolls. Annotate and snapshot for the ticket.</div>
+        <div class="industry-tag">MSP &middot; co-managed IT</div>
+      </div>
+      <div class="industry-card">
+        <div class="industry-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12h4l3-9 6 18 3-9h4"/></svg></div>
+        <div class="industry-title">Field service</div>
+        <div class="industry-body">Senior tech guides a junior tech in the field, or a homeowner shows the issue before a dispatch decision.</div>
+        <div class="industry-tag">HVAC &middot; appliance &middot; install</div>
+      </div>
+      <div class="industry-card">
+        <div class="industry-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+        <div class="industry-title">Manufacturing &amp; ops</div>
+        <div class="industry-body">Line operator points the phone at the machine; a remote engineer reads the LED, the gauge, the error panel.</div>
+        <div class="industry-tag">CMMS &middot; OEE &middot; downtime</div>
+      </div>
+      <div class="industry-card">
+        <div class="industry-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+        <div class="industry-title">Healthcare equipment</div>
+        <div class="industry-body">Triage hospital and clinic devices visually before the biomed engineer drives in. (HIPAA tier on roadmap.)</div>
+        <div class="industry-tag">Biomed &middot; clinical IT</div>
+      </div>
+      <div class="industry-card">
+        <div class="industry-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2c2.5 3 4 7 4 10s-1.5 7-4 10c-2.5-3-4-7-4-10s1.5-7 4-10z"/></svg></div>
+        <div class="industry-title">Retail &amp; distributed teams</div>
+        <div class="industry-body">Store associate shows the pinpad, scanner, or printer to head-office IT for a 60-second fix.</div>
+        <div class="industry-tag">POS &middot; kiosks &middot; print</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ANNOTATION SHOWCASE -->
+<div class="annotation-band">
+  <div class="annotation-shell">
+    <div class="annotation-copy">
+      <div class="section-kicker" style="color:var(--orange);">Annotation toolkit</div>
+      <h2>Draw on the live scene.<br><em>Or freeze it first, then circle the exact pin.</em></h2>
+      <p>Stop saying "the second port from the left." Drop a laser pointer, draw a circle, sketch a path, or shoot an arrow. The marks render in real time on the customer's view and stay on the snapshot when you save.</p>
+      <div class="tool-pills">
+        <span class="tool-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3" fill="currentColor"/><circle cx="12" cy="12" r="9"/></svg>Laser</span>
+        <span class="tool-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>Circle</span>
+        <span class="tool-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 17l4-1 11-11 1 5-11 11z"/></svg>Pen</span>
+        <span class="tool-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Arrow</span>
+        <span class="tool-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>Sizes</span>
+        <span class="tool-pill"><span class="swatch-row"><span class="sw o"></span><span class="sw r"></span><span class="sw y"></span><span class="sw g"></span><span class="sw b"></span></span>Colors</span>
+        <span class="tool-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></svg>Freeze</span>
+        <span class="tool-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="4"/></svg>Snapshot</span>
+      </div>
+    </div>
+    <div class="anno-stage" aria-hidden="true">
+      <div class="anno-frozen-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></svg>
+        FROZEN
+      </div>
+      <div class="anno-device"></div>
+      <div class="anno-port-row">
+        <div class="anno-port"></div><div class="anno-port"></div><div class="anno-port"></div><div class="anno-port"></div><div class="anno-port"></div>
+      </div>
+      <div class="anno-pen"></div>
+      <div class="anno-circle"></div>
+      <div class="anno-arrow"></div>
+      <div class="anno-laser"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PILOT PROGRAM -->
+<div class="pilot-band" id="pilot">
+  <div class="pilot-shell">
+    <div>
+      <div class="pilot-eyebrow"><div class="eyebrow-dot"></div>Early access</div>
+      <h2>Be one of the first ten teams on GoShowMe.</h2>
+      <p>We're not hiding it: GoShowMe is brand new. Instead of fake logos, we'd rather work directly with a small group of teams who use it every day, ship fixes against your real workflow, and credit you publicly when you're ready.</p>
+      <div class="pilot-bullets">
+        <div class="pilot-bullet">Direct line to the founder via email or shared Slack.</div>
+        <div class="pilot-bullet">Roadmap input on multi-tech, integrations, and AI modes.</div>
+        <div class="pilot-bullet">Locked-in Pro pricing for the life of your pilot.</div>
+        <div class="pilot-bullet">Optional case study and logo placement once it works for you.</div>
+      </div>
+    </div>
+    <div class="pilot-cta">
+      <div>
+        <div class="pilot-cta-k">Talk to the founder</div>
+        <div class="pilot-cta-v">15-minute call. No deck.</div>
+      </div>
+      <a class="pilot-cta-mail" href="mailto:hi@goshowmeapp.com?subject=GoShowMe%20pilot%20program">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Email hi@goshowmeapp.com
+      </a>
+      <div class="pilot-cta-note">REPLIES SAME-DAY, U.S. HOURS</div>
     </div>
   </div>
 </div>
